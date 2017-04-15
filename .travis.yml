@@ -1,18 +1,12 @@
-language: python
-python:
-    - "2.7"
+dist: trusty
+sudo: required
+language: c
 
-sudo: false
-cache:
-    directories:
-        - "~/.platformio"
-
-env:
-    - PLATFORMIO_CI_SRC=src/main.cpp
-
-install:
-    - pip install -U platformio
-
+before_install:
+  - sudo add-apt-repository ppa:team-gcc-arm-embedded/ppa -y
+  - sudo apt-get update -q
+  - sudo apt-get install gcc-arm-embedded -y
 script:
-    - platformio ci --project-conf=platformio.ini
+  - mkdir build
+  - cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/arm-none-eabi.cmake .. && make
 
