@@ -17,25 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "clock.h"
-#include "uart.h"
-#include "measurement.h"
-#include "lcd.h"
 
-/**
- * Entry point.
- */
-int main()
+void clock_init()
 {
-  // Initialize subsystems.
-  clock_init();
-  // uart_init();
-  measurement_init();
-  lcd_init();
-
-  for (;;) {
-    // Update measurement buffer.
-    measurement_update();
-  }
-
-  return 0;
 }

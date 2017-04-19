@@ -16,26 +16,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "clock.h"
-#include "uart.h"
-#include "measurement.h"
-#include "lcd.h"
+#ifndef PULSEOX_LCD_H
+#define PULSEOX_LCD_H
 
 /**
- * Entry point.
+ * Setup LCD peripheral.
  */
-int main()
-{
-  // Initialize subsystems.
-  clock_init();
-  // uart_init();
-  measurement_init();
-  lcd_init();
+void lcd_init();
 
-  for (;;) {
-    // Update measurement buffer.
-    measurement_update();
-  }
-
-  return 0;
-}
+#endif
