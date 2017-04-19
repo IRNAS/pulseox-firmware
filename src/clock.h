@@ -19,9 +19,25 @@
 #ifndef PULSEOX_CLOCK_H
 #define PULSEOX_CLOCK_H
 
+#include <stdint.h>
+
 /**
  * Setup clock.
  */
 void clock_init();
+
+/**
+ * Sleep for a specified number of milliseconds.
+ *
+ * @param delay Delay in milliseconds
+ */
+void clock_msleep(uint32_t delay);
+
+/**
+ * Sleep for a specified number of microseconds.
+ *
+ * @param delay Delay in microseconds
+ */
+void clock_usleep(uint32_t delay);
 
 #endif

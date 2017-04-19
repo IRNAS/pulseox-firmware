@@ -16,11 +16,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "measurement.h"
+#include "clock.h"
+
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/adc.h>
-
-#include "measurement.h"
 
 #define LED_PORT GPIOA
 #define LED_PIN1 GPIO4
@@ -37,9 +38,9 @@
 
 #define ADC_CHANNEL0 0x00
 
-void cycle_wait(int cycles);
 void detector_power_on();
 void detector_power_off();
+uint16_t detector_read();
 
 void measurement_init()
 {
@@ -73,12 +74,13 @@ void measurement_init()
   adc_power_on(ADC1);
 
   // Wait for ADC to start up.
-  cycle_wait(800000);
+  clock_msleep(100);
 }
 
 void detector_power_on()
 {
   gpio_set(DETECTOR_PORT, DETECTOR_PIN_VDD);
+  clock_usleep(10);
 }
 
 void detector_power_off()
@@ -86,34 +88,37 @@ void detector_power_off()
   gpio_clear(DETECTOR_PORT, DETECTOR_PIN_VDD);
 }
 
+uint16_t detector_read()
+{
+  adc_start_conversion_regular(ADC1);
+  while (!(adc_eoc(ADC1)));
+  return adc_read_regular(ADC1);
+}
+
 void measurement_update()
 {
   detector_power_on();
 
+  // TODO: What is the correct timing for reads?
+  // TODO: Read from detector, collect measurements.
+
   // Yellow.
   gpio_set(LED_PORT, LED_YELLOW);
-  cycle_wait(1000000);
+  clock_msleep(125);
   gpio_clear(LED_PORT, LED_YELLOW);
-  cycle_wait(1000000);
+  clock_msleep(125);
 
   // Orange.
   gpio_set(LED_PORT, LED_ORANGE);
-  cycle_wait(1000000);
+  clock_msleep(125);
   gpio_clear(LED_PORT, LED_ORANGE);
-  cycle_wait(1000000);
+  clock_msleep(125);
 
   // Red.
   gpio_set(LED_PORT, LED_RED);
-  cycle_wait(1000000);
+  clock_msleep(125);
   gpio_clear(LED_PORT, LED_RED);
-  cycle_wait(1000000);
+  clock_msleep(125);
 
   detector_power_off();
-}
-
-void cycle_wait(int cycles)
-{
-  for (int i = 0; i < cycles; i++) {
-    __asm__("nop");
-  }
 }
