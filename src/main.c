@@ -20,6 +20,7 @@
 #include "uart.h"
 #include "measurement.h"
 #include "lcd.h"
+#include "gfx.h"
 
 /**
  * Entry point.
@@ -31,10 +32,22 @@ int main()
   // uart_init();
   measurement_init();
   lcd_init();
+  gfx_init(lcd_draw_pixel, LCD_WIDTH, LCD_HEIGHT);
+
+  // Draw some demo graphics.
+  gfx_drawLine(0, 0, 128, 64, 0x80);
+  gfx_drawLine(0, 64, 128, 0, 0x80);
+  gfx_setTextSize(2);
+  gfx_setTextColor(0x80, 0x00);
+  gfx_setCursor(15, 25);
+  gfx_puts("GliaX");
 
   for (;;) {
     // Update measurement buffer.
     measurement_update();
+
+    // Refresh LCD.
+    lcd_refresh();
   }
 
   return 0;

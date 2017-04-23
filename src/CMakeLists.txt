@@ -3,6 +3,7 @@ set(SOURCES
   uart.c
   measurement.c
   lcd.c
+  gfx.c
   main.c
 )
 
