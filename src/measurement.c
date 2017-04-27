@@ -28,9 +28,14 @@
 #define LED_PIN2 GPIO3
 #define LED_PIN3 GPIO2
 
-#define LED_YELLOW (LED_PIN2 | LED_PIN3)
-#define LED_ORANGE LED_PIN1
-#define LED_RED (LED_PIN1 | LED_PIN2)
+// LED5 - Red (660nm).
+#define LED_RED (LED_PIN1 | (LED_PIN2 << 16) | (LED_PIN3 << 16))
+// LED3 - Orange (610nm).
+#define LED_ORANGE ((LED_PIN1 << 16) | LED_PIN2 | LED_PIN3)
+// LED2 - IR (940nm).
+#define LED_IR ((LED_PIN1 << 16) | (LED_PIN2 << 16) | LED_PIN3)
+// LED4 - Yellow (590nm).
+#define LED_YELLOW (LED_PIN1 | LED_PIN2 | (LED_PIN3 << 16))
 
 #define DETECTOR_PORT GPIOA
 #define DETECTOR_PIN_ANALOG_IN GPIO0
@@ -41,6 +46,7 @@
 void detector_power_on();
 void detector_power_off();
 uint16_t detector_read();
+void led_turn_on(uint32_t led);
 
 void measurement_init()
 {
@@ -95,30 +101,16 @@ uint16_t detector_read()
   return adc_read_regular(ADC1);
 }
 
+void led_turn_on(uint32_t led)
+{
+  GPIO_BSRR(LED_PORT) = led;
+}
+
 void measurement_update()
 {
   detector_power_on();
 
-  // TODO: What is the correct timing for reads?
-  // TODO: Read from detector, collect measurements.
-
-  // Yellow.
-  gpio_set(LED_PORT, LED_YELLOW);
-  clock_msleep(125);
-  gpio_clear(LED_PORT, LED_YELLOW);
-  clock_msleep(125);
-
-  // Orange.
-  gpio_set(LED_PORT, LED_ORANGE);
-  clock_msleep(125);
-  gpio_clear(LED_PORT, LED_ORANGE);
-  clock_msleep(125);
-
-  // Red.
-  gpio_set(LED_PORT, LED_RED);
-  clock_msleep(125);
-  gpio_clear(LED_PORT, LED_RED);
-  clock_msleep(125);
+  led_turn_on(LED_IR);
 
   detector_power_off();
 }
