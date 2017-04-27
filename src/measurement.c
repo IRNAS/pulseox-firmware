@@ -18,10 +18,14 @@
  */
 #include "measurement.h"
 #include "clock.h"
+#include "gfx.h"
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/adc.h>
+
+#define _GNU_SOURCE
+#include <stdio.h>
 
 #define LED_PORT GPIOA
 #define LED_PIN1 GPIO4
@@ -41,12 +45,18 @@
 #define DETECTOR_PIN_ANALOG_IN GPIO0
 #define DETECTOR_PIN_VDD GPIO1
 
+#define DETECTOR_TIMINGS_RISE_TIME 10
+#define DETECTOR_TIMINGS_FALL_TIME 10
+#define DETECTOR_TIMINGS_STABILIZE 10
+
 #define ADC_CHANNEL0 0x00
 
 void detector_power_on();
 void detector_power_off();
 uint16_t detector_read();
+void led_turn_off();
 void led_turn_on(uint32_t led);
+uint16_t measurement_read_wavelength(uint32_t led);
 
 void measurement_init()
 {
@@ -86,12 +96,13 @@ void measurement_init()
 void detector_power_on()
 {
   gpio_set(DETECTOR_PORT, DETECTOR_PIN_VDD);
-  clock_usleep(10);
+  clock_usleep(DETECTOR_TIMINGS_RISE_TIME);
 }
 
 void detector_power_off()
 {
   gpio_clear(DETECTOR_PORT, DETECTOR_PIN_VDD);
+  clock_usleep(DETECTOR_TIMINGS_FALL_TIME);
 }
 
 uint16_t detector_read()
@@ -101,16 +112,47 @@ uint16_t detector_read()
   return adc_read_regular(ADC1);
 }
 
+void led_turn_off()
+{
+  gpio_clear(LED_PORT, LED_PIN1 | LED_PIN2 | LED_PIN3);
+}
+
 void led_turn_on(uint32_t led)
 {
   GPIO_BSRR(LED_PORT) = led;
 }
 
+uint16_t measurement_read_wavelength(uint32_t led)
+{
+  uint16_t result;
+  led_turn_on(led);
+  clock_usleep(DETECTOR_TIMINGS_STABILIZE);
+  result = detector_read();
+  led_turn_off();
+  clock_usleep(DETECTOR_TIMINGS_STABILIZE);
+  return result;
+}
+
 void measurement_update()
 {
+  uint16_t wavelengths[4] = {0,};
+  char buffer[64] = {0,};
+
   detector_power_on();
-
-  led_turn_on(LED_IR);
-
+  wavelengths[0] = measurement_read_wavelength(LED_RED);
+  wavelengths[1] = measurement_read_wavelength(LED_ORANGE);
+  wavelengths[2] = measurement_read_wavelength(LED_YELLOW);
+  wavelengths[3] = measurement_read_wavelength(LED_IR);
   detector_power_off();
+
+  // Output measurements.
+  snprintf(buffer, sizeof(buffer), "Red: %u\nOrange: %u\nYellow: %u\nIR: %u",
+    wavelengths[0], wavelengths[1], wavelengths[2], wavelengths[3]);
+  gfx_fillScreen(0x00);
+  gfx_setTextSize(1);
+  gfx_setTextColor(0x80, 0x00);
+  gfx_setCursor(0, 0);
+  gfx_puts(buffer);
+
+  clock_msleep(1000);
 }
