@@ -22,6 +22,22 @@
 #include "lcd.h"
 #include "gfx.h"
 
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/gpio.h>
+
+#define DEBUG_BUTTON_PORT GPIOF
+#define DEBUG_U6 GPIO0
+
+#ifdef PULSEOX_DEBUG
+void debug_init()
+{
+  rcc_periph_clock_enable(RCC_GPIOF);
+
+  // Setup GPIOs.
+  gpio_mode_setup(DEBUG_BUTTON_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, DEBUG_U6);
+}
+#endif
+
 /**
  * Entry point.
  */
@@ -29,18 +45,47 @@ int main()
 {
   // Initialize subsystems.
   clock_init();
-  // uart_init();
   measurement_init();
   lcd_init();
   gfx_init(lcd_draw_pixel, LCD_WIDTH, LCD_HEIGHT);
 
-  // Draw some demo graphics.
-  gfx_drawLine(0, 0, 128, 64, 0x80);
-  gfx_drawLine(0, 64, 128, 0, 0x80);
-  gfx_setTextSize(2);
+#ifdef PULSEOX_DEBUG
+  debug_init();
+
+  // Display UART console enable message.
+  gfx_setCursor(0, 0);
+  gfx_setTextSize(1);
   gfx_setTextColor(0x80, 0x00);
-  gfx_setCursor(15, 25);
-  gfx_puts("GliaX");
+  gfx_puts("GliaX Boot.\n===========\nPress U6 for\nconsole.");
+  lcd_refresh();
+
+  uint8_t console_enabled = 0;
+  uint32_t start = clock_millis();
+  for (;;) {
+    // Check if U6 is low.
+    if (!gpio_get(DEBUG_BUTTON_PORT, DEBUG_U6)) {
+      console_enabled = 1;
+      break;
+    }
+
+    // Continue startup after 5 seconds.
+    if (clock_millis() - start > 5000) {
+      break;
+    }
+  }
+
+  // Initialize UART when console requested.
+  if (console_enabled) {
+    gfx_fillScreen(0x00);
+    gfx_setCursor(0, 0);
+    gfx_puts("Debug console\nenabled.");
+    lcd_refresh();
+    clock_msleep(2000);
+
+    uart_init();
+    uart_printf("Debug console enabled.\r\n");
+  }
+#endif
 
   for (;;) {
     // Update measurement buffer.

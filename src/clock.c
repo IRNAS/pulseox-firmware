@@ -56,3 +56,8 @@ void clock_usleep(uint32_t delay)
     __asm__("nop");
   }
 }
+
+uint32_t clock_millis()
+{
+  return system_millis;
+}

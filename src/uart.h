@@ -26,4 +26,12 @@ void uart_init();
 
 FILE *uart_stream();
 
+#ifdef PULSEOX_DEBUG
+#define uart_printf(...) if (uart_stream() != NULL) { \
+                           fprintf(uart_stream(), __VA_ARGS__); \
+                         }
+#else
+#define uart_printf(...)
+#endif
+
 #endif

@@ -40,4 +40,9 @@ void clock_msleep(uint32_t delay);
  */
 void clock_usleep(uint32_t delay);
 
+/**
+ * Return the number of milliseconds since boot.
+ */
+uint32_t clock_millis();
+
 #endif
