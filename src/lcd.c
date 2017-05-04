@@ -33,6 +33,8 @@
 
 // Screen buffer.
 uint8_t lcd_screen_buffer[LCD_WIDTH * (LCD_HEIGHT / LCD_PAGE_SIZE)];
+// Needs refresh.
+uint8_t lcd_dirty = 0;
 
 void lcd_init()
 {
@@ -130,10 +132,17 @@ void lcd_draw_pixel(int x, int y, uint16_t color)
   } else {
     lcd_screen_buffer[offset] &= 0xFF ^ 1 << (y % 8);
   }
+
+  lcd_dirty = 1;
 }
 
 void lcd_refresh()
 {
+  if (!lcd_dirty) {
+    return;
+  }
+  lcd_dirty = 0;
+
   for (int y = 0; y < LCD_HEIGHT / LCD_PAGE_SIZE; y++) {
     // TODO: Only refresh dirty pages.
 
