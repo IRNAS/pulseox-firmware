@@ -67,12 +67,12 @@ void gui_measurement_update(const measurement_t *measurement)
   if (measurement->hr != state.display_hr) {
     gfx_setTextSize(1);
     gfx_setTextColor(0x80, 0x00);
-    gfx_setCursor(20, 0);
+    gfx_setCursor(80, 5);
     gfx_puts("HR");
 
     snprintf(text_buffer, sizeof(text_buffer), "%u", measurement->hr);
     gfx_setTextSize(2);
-    gfx_setCursor(10, 14);
+    gfx_setCursor(70, 19);
     gfx_puts(text_buffer);
     state.display_hr = measurement->hr;
   }
@@ -80,11 +80,11 @@ void gui_measurement_update(const measurement_t *measurement)
   if (measurement->spo2 != state.display_spo2) {
     gfx_setTextSize(1);
     gfx_setTextColor(0x80, 0x00);
-    gfx_setCursor(70, 0);
+    gfx_setCursor(15, 5);
     gfx_puts("SpO2%");
 
     gfx_setTextSize(2);
-    gfx_setCursor(75, 14);
+    gfx_setCursor(20, 19);
     snprintf(text_buffer, sizeof(text_buffer), "%u", measurement->spo2);
     gfx_puts(text_buffer);
     state.display_spo2 = measurement->spo2;
@@ -99,12 +99,9 @@ void gui_measurement_update(const measurement_t *measurement)
     float value = (state.waveform_bucket / (float) state.waveform_bucket_size);
     value = (value * (float) GUI_WAVEFORM_HEIGHT) / measurement->waveform_spo2_max;
 
-    // Erase previous bucket.
-    gfx_drawLine(
-      state.waveform_x, state.height,
-      state.waveform_x, state.height - GUI_WAVEFORM_HEIGHT,
-      0x00
-    );
+    // Erase previous and next buckets.
+    gfx_fillRect(state.waveform_x, state.height - GUI_WAVEFORM_HEIGHT,
+      GUI_WAVEFORM_GAP + 1, GUI_WAVEFORM_HEIGHT, 0x00);
 
     // Draw new bucket.
     gfx_drawLine(

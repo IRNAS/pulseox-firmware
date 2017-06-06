@@ -27,6 +27,8 @@
 #define GUI_WAVEFORM_WIDTH 5000
 // Waveform maximum height (in pixels).
 #define GUI_WAVEFORM_HEIGHT 20
+// Waveform gap between current and old measurements (in pixels).
+#define GUI_WAVEFORM_GAP 2
 
 /**
  * Setup GUI.
