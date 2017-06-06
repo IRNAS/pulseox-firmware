@@ -19,6 +19,30 @@
 #ifndef PULSEOX_MEASUREMENT_H
 #define PULSEOX_MEASUREMENT_H
 
+#include <stdint.h>
+
+#define MEAN_FILTER_SIZE 15
+#define DC_FILTER_ALPHA 0.95
+
+typedef struct {
+  uint16_t red;
+  uint16_t orange;
+  uint16_t yellow;
+  uint16_t ir;
+} raw_measurement_t;
+
+typedef struct {
+  float w;
+  float result;
+} dc_filter_t;
+
+typedef struct {
+  float values[MEAN_FILTER_SIZE];
+  uint8_t index;
+  float sum;
+  uint8_t count;
+} mean_diff_filter_t;
+
 /**
  * Setup measurement peripherals.
  */
