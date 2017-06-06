@@ -67,12 +67,12 @@ void gui_measurement_update(const measurement_t *measurement)
   if (measurement->hr != state.display_hr) {
     gfx_setTextSize(1);
     gfx_setTextColor(0x80, 0x00);
-    gfx_setCursor(80, 5);
+    gfx_setCursor(90, 0);
     gfx_puts("HR");
 
     snprintf(text_buffer, sizeof(text_buffer), "%u", measurement->hr);
     gfx_setTextSize(2);
-    gfx_setCursor(70, 19);
+    gfx_setCursor(80, 14);
     gfx_puts(text_buffer);
     state.display_hr = measurement->hr;
   }
@@ -80,11 +80,11 @@ void gui_measurement_update(const measurement_t *measurement)
   if (measurement->spo2 != state.display_spo2) {
     gfx_setTextSize(1);
     gfx_setTextColor(0x80, 0x00);
-    gfx_setCursor(15, 5);
+    gfx_setCursor(20, 0);
     gfx_puts("SpO2%");
 
-    gfx_setTextSize(2);
-    gfx_setCursor(20, 19);
+    gfx_setTextSize(3);
+    gfx_setCursor(15, 14);
     snprintf(text_buffer, sizeof(text_buffer), "%u", measurement->spo2);
     gfx_puts(text_buffer);
     state.display_spo2 = measurement->spo2;
