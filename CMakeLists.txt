@@ -13,7 +13,7 @@ include_directories(${LIBOPENCM3_DIR}/include)
 
 # Target architecture compile flags.
 add_definitions(-DSTM32F0)
-add_definitions(-DPULSEOX_DEBUG)
+# add_definitions(-DPULSEOX_DEBUG)
 set(CMAKE_SYSTEM_PROCESSOR "cortex-m0")
 set(TARGET_PLATFORM_FLAGS "-mcpu=${CMAKE_SYSTEM_PROCESSOR} -mthumb -msoft-float")
 set(TARGET_PLATFORM_LIBRARY "opencm3_stm32f0")

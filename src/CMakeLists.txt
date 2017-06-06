@@ -4,6 +4,7 @@ set(SOURCES
   measurement.c
   lcd.c
   gfx.c
+  gui.c
   main.c
 )
 

@@ -33,15 +33,6 @@
 #define LED_PIN2 GPIO3
 #define LED_PIN3 GPIO2
 
-// LED5 - Red (660nm).
-#define LED_RED (LED_PIN1 | (LED_PIN2 << 16) | (LED_PIN3 << 16))
-// LED3 - Orange (610nm).
-#define LED_ORANGE ((LED_PIN1 << 16) | LED_PIN2 | LED_PIN3)
-// LED2 - IR (940nm).
-#define LED_IR ((LED_PIN1 << 16) | (LED_PIN2 << 16) | LED_PIN3)
-// LED4 - Yellow (590nm).
-#define LED_YELLOW (LED_PIN1 | LED_PIN2 | (LED_PIN3 << 16))
-
 #define DETECTOR_PORT GPIOA
 #define DETECTOR_PIN_ANALOG_IN GPIO0
 #define DETECTOR_PIN_VDD GPIO1
@@ -58,24 +49,63 @@ uint16_t detector_read();
 void led_turn_off();
 void led_turn_on(uint32_t led);
 void led_wait(int clocks);
-uint16_t measurement_read_wavelength(uint32_t led);
+uint16_t measurement_read_wavelength(uint8_t led_index);
 raw_measurement_t measurement_read();
 
-// LED timings.
-static volatile int timing_led_ir_on = 3;
-static volatile int timing_led_ir_wait = 4;
+// LED configuration defaults.
+led_config_t led_config[] = {
+  // LED2 - IR (940nm).
+  {
+    .gpio = ((LED_PIN1 << 16) | (LED_PIN2 << 16) | LED_PIN3),
+    .duty_on = 3,
+    .duty_wait = 4
+  },
+  // LED5 - Red (660nm).
+  {
+    .gpio = (LED_PIN1 | (LED_PIN2 << 16) | (LED_PIN3 << 16)),
+    .duty_on = 3,
+    .duty_wait = 4
+  },
+  // LED3 - Orange (610nm).
+  {
+    .gpio = ((LED_PIN1 << 16) | LED_PIN2 | LED_PIN3),
+    .duty_on = 3,
+    .duty_wait = 4
+  },
+  // LED4 - Yellow (590nm)
+  {
+    .gpio = (LED_PIN1 | LED_PIN2 | (LED_PIN3 << 16)),
+    .duty_on = 3,
+    .duty_wait = 4
+  }
+};
+
+// Indices into the above LED configuration array.
+const uint8_t LED_IR = 0;
+const uint8_t LED_RED = 1;
+const uint8_t LED_ORANGE = 2;
+const uint8_t LED_YELLOW = 3;
 
 // Filters.
-static dc_filter_t dc_filter_ir = {0.0, 0.0};
-static mean_diff_filter_t mean_diff_ir = { .index = 0, .sum = 0.0, .count = 0 };
+dc_filter_t dc_filter_ir = {0.0, 0.0};
+mean_diff_filter_t mean_diff_ir = { .index = 0, .sum = 0.0, .count = 0 };
 
 // Sampling frequency.
-static uint32_t last_report = 0;
-static uint32_t sample_count = 0;
-static uint32_t measurement_delay = 0;
+uint32_t last_measurement = 0;
+uint32_t last_report = 0;
+uint32_t sample_count = 0;
+uint32_t measurement_delay = 0;
 
-void measurement_init()
+// Current measuremnt.
+measurement_t current_measurement;
+
+// Measurement callback.
+measurement_update_callback_t callback_on_update = NULL;
+
+void measurement_init(measurement_update_callback_t on_update)
 {
+  callback_on_update = on_update;
+
   rcc_periph_clock_enable(RCC_ADC);
   rcc_periph_clock_enable(RCC_GPIOA);
 
@@ -150,21 +180,26 @@ __attribute__((always_inline)) inline void led_wait(volatile int clocks)
   }
 }
 
-uint16_t measurement_read_wavelength(uint32_t led)
+uint16_t measurement_read_wavelength(uint8_t led_index)
 {
-  led_turn_on(led);
-  led_wait(timing_led_ir_on);
+  led_config_t *config = &led_config[led_index];
+
+  volatile int duty_on = config->duty_on;
+  volatile int duty_wait = config->duty_wait;
+
+  led_turn_on(config->gpio);
+  led_wait(duty_on);
   led_turn_off();
-  led_wait(timing_led_ir_wait);
+  led_wait(duty_wait);
 
   uint16_t result = detector_read();
   clock_usleep(DETECTOR_TIMINGS_FALL_TIME);
 
-  // Reduce timings when detector is saturated.
-  if (result > 3800 && timing_led_ir_on >= 1) {
-    timing_led_ir_on--;
-  } else if (result < 1000 && timing_led_ir_on < 10) {
-    timing_led_ir_on++;
+  // Reduce duty cycle when detector is saturated.
+  if (result > 3800 && config->duty_on >= 1) {
+    config->duty_on--;
+  } else if (result < 1000 && config->duty_on < 10) {
+    config->duty_on++;
   }
 
   return result;
@@ -213,14 +248,40 @@ float measurement_mean_diff(float value, mean_diff_filter_t *filter)
 
 void measurement_update()
 {
-  raw_measurement_t raw = measurement_read();
-
-  dc_filter_ir = measurement_dc_removal((float) raw.ir, dc_filter_ir.w, DC_FILTER_ALPHA);
-  float mean_ir = measurement_mean_diff(dc_filter_ir.result, &mean_diff_ir);
-  clock_msleep(measurement_delay);
-
   uint32_t now = clock_millis();
-  sample_count++;
+
+  if (now - last_measurement > measurement_delay) {
+    raw_measurement_t raw = measurement_read();
+
+    // IR.
+    dc_filter_ir = measurement_dc_removal((float) raw.ir, dc_filter_ir.w, DC_FILTER_ALPHA);
+    float mean_ir = measurement_mean_diff(dc_filter_ir.result, &mean_diff_ir);
+
+    // TODO: Compute derived values. Currently dummy values are used for the GUI.
+    current_measurement.hr = 90;
+    current_measurement.spo2 = 94;
+    current_measurement.waveform_hr = 50;
+    current_measurement.waveform_hr_max = 100;
+    current_measurement.waveform_spo2 = (now % 100);
+    current_measurement.waveform_spo2_max = 100;
+
+    // Notify subscribers.
+    if (callback_on_update != NULL) {
+      callback_on_update(&current_measurement);
+    }
+
+    last_measurement = now;
+    sample_count++;
+
+    // Output measurements.
+    uart_printf("%d,%u,%d,%d\r\n",
+      (int) now,
+      raw.ir,
+      (int) (dc_filter_ir.result * 100),
+      (int) (mean_ir * 100)
+    );
+  }
+
   if (now - last_report > 1000) {
     // Adjust measurement delay to achieve a sampling rate of around 100Hz.
     if (sample_count > 110) {
@@ -230,14 +291,8 @@ void measurement_update()
       // Decrease delay.
       measurement_delay -= 1;
     }
-    last_report = now;
-  }
 
-  // Output measurements.
-  uart_printf("%d,%u,%d,%d\r\n",
-    (int) now,
-    raw.ir,
-    (int) (dc_filter_ir.result * 100),
-    (int) (mean_ir * 100)
-  );
+    last_report = now;
+    sample_count = 0;
+  }
 }

@@ -21,6 +21,7 @@
 #include "measurement.h"
 #include "lcd.h"
 #include "gfx.h"
+#include "gui.h"
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
@@ -45,9 +46,10 @@ int main()
 {
   // Initialize subsystems.
   clock_init();
-  measurement_init();
   lcd_init();
   gfx_init(lcd_draw_pixel, LCD_WIDTH, LCD_HEIGHT);
+  gui_init(LCD_WIDTH, LCD_HEIGHT);
+  measurement_init(gui_measurement_update);
 
 #ifdef PULSEOX_DEBUG
   debug_init();
@@ -90,6 +92,9 @@ int main()
   for (;;) {
     // Update measurement buffer.
     measurement_update();
+
+    // Render GUI.
+    gui_render();
 
     // Refresh LCD.
     lcd_refresh();
