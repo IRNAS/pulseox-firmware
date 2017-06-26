@@ -81,6 +81,8 @@ void gui_measurement_update(const measurement_t *measurement)
 
     gfx_setTextSize(2);
     gfx_setCursor(80, 14);
+    gfx_puts("   ");
+    gfx_setCursor(80, 14);
     gfx_puts(text_buffer);
     state.display_hr = measurement->hr;
   }
@@ -98,6 +100,8 @@ void gui_measurement_update(const measurement_t *measurement)
     }
 
     gfx_setTextSize(3);
+    gfx_setCursor(15, 14);
+    gfx_puts("  ");
     gfx_setCursor(15, 14);
     gfx_puts(text_buffer);
     state.display_spo2 = measurement->spo2;
