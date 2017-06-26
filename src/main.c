@@ -21,7 +21,10 @@
 #include "measurement.h"
 #include "lcd.h"
 #include "gfx.h"
+
+#ifndef PULSEOX_DEBUG
 #include "gui.h"
+#endif
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
@@ -48,8 +51,12 @@ int main()
   clock_init();
   lcd_init();
   gfx_init(lcd_draw_pixel, LCD_WIDTH, LCD_HEIGHT);
+#ifdef PULSEOX_DEBUG
+  measurement_init(NULL);
+#else
   gui_init(LCD_WIDTH, LCD_HEIGHT);
   measurement_init(gui_measurement_update);
+#endif
 
 #ifdef PULSEOX_DEBUG
   debug_init();
@@ -86,6 +93,10 @@ int main()
 
     uart_init();
     uart_printf("Debug console enabled.\r\n");
+  } else {
+    gfx_fillScreen(0x00);
+    gfx_setCursor(0, 0);
+    gfx_puts("Debug console\nNOT enabled.");
   }
 #endif
 
@@ -94,7 +105,9 @@ int main()
     measurement_update();
 
     // Render GUI.
+#ifndef PULSEOX_DEBUG
     gui_render();
+#endif
 
     // Refresh LCD.
     lcd_refresh();

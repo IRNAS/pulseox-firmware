@@ -30,8 +30,8 @@ struct gui_state {
   uint16_t width;
   uint16_t height;
   // Current display values.
-  uint16_t display_hr;
-  uint8_t display_spo2;
+  int display_hr;
+  int display_spo2;
   // Current waveform X coordinate. Wraps around display width.
   uint16_t waveform_x;
   // Last waveform update.
@@ -53,6 +53,9 @@ void gui_init(uint16_t width, uint16_t height)
   state.width = width;
   state.height = height;
 
+  state.display_hr = -1;
+  state.display_spo2 = -1;
+
   // Initialize waveform.
   state.waveform_x = 0;
   state.waveform_last_update = 0;
@@ -70,7 +73,12 @@ void gui_measurement_update(const measurement_t *measurement)
     gfx_setCursor(90, 0);
     gfx_puts("HR");
 
-    snprintf(text_buffer, sizeof(text_buffer), "%u", measurement->hr);
+    if (measurement->hr) {
+      snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->hr);
+    } else {
+      snprintf(text_buffer, sizeof(text_buffer), "--");
+    }
+
     gfx_setTextSize(2);
     gfx_setCursor(80, 14);
     gfx_puts(text_buffer);
@@ -83,9 +91,14 @@ void gui_measurement_update(const measurement_t *measurement)
     gfx_setCursor(20, 0);
     gfx_puts("SpO2%");
 
+    if (measurement->spo2) {
+      snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->spo2);
+    } else {
+      snprintf(text_buffer, sizeof(text_buffer), "--");
+    }
+
     gfx_setTextSize(3);
     gfx_setCursor(15, 14);
-    snprintf(text_buffer, sizeof(text_buffer), "%u", measurement->spo2);
     gfx_puts(text_buffer);
     state.display_spo2 = measurement->spo2;
   }
@@ -98,6 +111,9 @@ void gui_measurement_update(const measurement_t *measurement)
   if (clock_millis() - state.waveform_last_update >= state.waveform_pixel_ms) {
     float value = (state.waveform_bucket / (float) state.waveform_bucket_size);
     value = (value * (float) GUI_WAVEFORM_HEIGHT) / measurement->waveform_spo2_max;
+    if (value > (float) GUI_WAVEFORM_HEIGHT) {
+      value = (float) GUI_WAVEFORM_HEIGHT;
+    }
 
     // Erase previous and next buckets.
     gfx_fillRect(state.waveform_x, state.height - GUI_WAVEFORM_HEIGHT,

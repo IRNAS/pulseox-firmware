@@ -27,6 +27,7 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <string.h>
 
 #define LED_PORT GPIOA
 #define LED_PIN1 GPIO4
@@ -57,25 +58,25 @@ led_config_t led_config[] = {
   // LED2 - IR (940nm).
   {
     .gpio = ((LED_PIN1 << 16) | (LED_PIN2 << 16) | LED_PIN3),
-    .duty_on = 3,
+    .duty_on = 5000,
     .duty_wait = 4
   },
   // LED5 - Red (660nm).
   {
     .gpio = (LED_PIN1 | (LED_PIN2 << 16) | (LED_PIN3 << 16)),
-    .duty_on = 3,
+    .duty_on = 1000,
     .duty_wait = 4
   },
   // LED3 - Orange (610nm).
   {
     .gpio = ((LED_PIN1 << 16) | LED_PIN2 | LED_PIN3),
-    .duty_on = 3,
+    .duty_on = 1000,
     .duty_wait = 4
   },
   // LED4 - Yellow (590nm)
   {
     .gpio = (LED_PIN1 | LED_PIN2 | (LED_PIN3 << 16)),
-    .duty_on = 3,
+    .duty_on = 1000,
     .duty_wait = 4
   }
 };
@@ -88,7 +89,26 @@ const uint8_t LED_YELLOW = 3;
 
 // Filters.
 dc_filter_t dc_filter_ir = {0.0, 0.0};
+dc_filter_t dc_filter_red = {0.0, 0.0};
 mean_diff_filter_t mean_diff_ir = { .index = 0, .sum = 0.0, .count = 0 };
+mean_diff_filter_t rolling_mean_ir = { .index = 0, .sum = 0.0, .count = 0 };
+
+// Pulse detection state.
+enum {
+  PULSE_IDLE = 0,
+  PULSE_RISING = 1,
+  PULSE_FALLING = 2,
+};
+
+uint8_t pulse_state = PULSE_IDLE;
+uint32_t pulse_current_timestamp = 0;
+uint32_t pulse_last_timestamp = 0;
+uint8_t pulse_beats = 0;
+uint8_t pulse_present = 0;
+float pulse_previous_value = 0.0;
+float pulse_current_bpm = 0.0;
+const float PULSE_THRESHOLD = 10.0;
+const float PULSE_RESET_THRESHOLD = 500.0;
 
 // Sampling frequency.
 uint32_t last_measurement = 0;
@@ -105,6 +125,8 @@ measurement_update_callback_t callback_on_update = NULL;
 void measurement_init(measurement_update_callback_t on_update)
 {
   callback_on_update = on_update;
+
+  memset(&current_measurement, 0, sizeof(current_measurement));
 
   rcc_periph_clock_enable(RCC_ADC);
   rcc_periph_clock_enable(RCC_GPIOA);
@@ -196,11 +218,11 @@ uint16_t measurement_read_wavelength(uint8_t led_index)
   clock_usleep(DETECTOR_TIMINGS_FALL_TIME);
 
   // Reduce duty cycle when detector is saturated.
-  if (result > 3800 && config->duty_on >= 1) {
+  /*if (result > 3800 && config->duty_on >= 1) {
     config->duty_on--;
   } else if (result < 1000 && config->duty_on < 10) {
     config->duty_on++;
-  }
+  }*/
 
   return result;
 }
@@ -210,10 +232,12 @@ raw_measurement_t measurement_read()
   raw_measurement_t result;
 
   // TODO: Read other wavelengths.
-  // result.red = measurement_read_wavelength(LED_RED);
-  // result.orange = measurement_read_wavelength(LED_ORANGE);
-  // result.yellow = measurement_read_wavelength(LED_YELLOW);
+  //result.orange = measurement_read_wavelength(LED_ORANGE);
+  //result.yellow = measurement_read_wavelength(LED_YELLOW);
+
   result.ir = measurement_read_wavelength(LED_IR);
+  result.red = measurement_read_wavelength(LED_RED);
+  // TODO: Also read ambient noise to subtract from the signals.
 
   return result;
 }
@@ -227,7 +251,7 @@ dc_filter_t measurement_dc_removal(float x, float prev_w, float alpha)
   return filter;
 }
 
-float measurement_mean_diff(float value, mean_diff_filter_t *filter)
+float measurement_mean_diff(float value, mean_diff_filter_t *filter, int diff)
 {
   float avg = 0;
 
@@ -243,7 +267,81 @@ float measurement_mean_diff(float value, mean_diff_filter_t *filter)
   }
 
   avg = filter->sum / filter->count;
-  return avg - value;
+  if (diff) {
+    // Difference from mean.
+    return avg - value;
+  } else {
+    // Rolling mean.
+    return avg;
+  }
+}
+
+int measurement_detect_pulse(float value)
+{
+  if (value >= PULSE_RESET_THRESHOLD) {
+    pulse_state = PULSE_IDLE;
+    pulse_current_timestamp = 0;
+    pulse_last_timestamp = 0;
+    pulse_previous_value = 0;
+    pulse_current_bpm = 0.0;
+    pulse_beats = 0;
+    pulse_present = 0;
+    return 0;
+  }
+
+  // If no pulse detected for some time, reset.
+  if (pulse_beats > 0 && clock_millis() - pulse_last_timestamp > 5000) {
+    pulse_current_bpm = 0.0;
+    pulse_beats = 0;
+    pulse_present = 0;
+  }
+
+  switch (pulse_state) {
+    case PULSE_IDLE: {
+      // Idle state: we wait for the value to cross the threshold.
+      if (value >= PULSE_THRESHOLD) {
+        pulse_state = PULSE_RISING;
+      }
+      break;
+    }
+    case PULSE_RISING: {
+      if (value > pulse_previous_value) {
+        // Still rising.
+        pulse_current_timestamp = clock_millis();
+      } else {
+        // Reached the peak.
+        uint32_t beat_duration = pulse_current_timestamp - pulse_last_timestamp;
+        pulse_last_timestamp = pulse_current_timestamp;
+
+        // Compute BPM.
+        float raw_bpm = 60000.0 / (float) beat_duration;
+        // TODO: Moving average for BPM.
+        if (raw_bpm > 10.0 && raw_bpm < 300.0) {
+          pulse_beats++;
+
+          if (pulse_beats > 3) {
+            pulse_current_bpm = raw_bpm;
+            pulse_beats = 3;
+            pulse_present = 1;
+          }
+        }
+
+        pulse_state = PULSE_FALLING;
+        return 1;
+      }
+      break;
+    }
+    case PULSE_FALLING: {
+      // Move into idle state when under the threshold.
+      if (value < PULSE_THRESHOLD) {
+        pulse_state = PULSE_IDLE;
+      }
+      break;
+    }
+  }
+
+  pulse_previous_value = value;
+  return 0;
 }
 
 void measurement_update()
@@ -255,15 +353,27 @@ void measurement_update()
 
     // IR.
     dc_filter_ir = measurement_dc_removal((float) raw.ir, dc_filter_ir.w, DC_FILTER_ALPHA);
-    float mean_ir = measurement_mean_diff(dc_filter_ir.result, &mean_diff_ir);
+    float mean_ir = measurement_mean_diff(dc_filter_ir.result, &mean_diff_ir, 1);
+    mean_ir = measurement_mean_diff(mean_ir, &rolling_mean_ir, 0);
 
-    // TODO: Compute derived values. Currently dummy values are used for the GUI.
-    current_measurement.hr = 90;
-    current_measurement.spo2 = 94;
-    current_measurement.waveform_hr = 50;
-    current_measurement.waveform_hr_max = 100;
-    current_measurement.waveform_spo2 = (now % 100);
-    current_measurement.waveform_spo2_max = 100;
+    // Red.
+    dc_filter_red = measurement_dc_removal((float) raw.red, dc_filter_red.w, DC_FILTER_ALPHA);
+
+    // Perform pulse detection.
+    measurement_detect_pulse(mean_ir);
+
+    // Compute derived measurements.
+    if (pulse_present) {
+      current_measurement.hr = (int) pulse_current_bpm;
+    } else {
+      // No pulse present, SpO2 should be ignored.
+      current_measurement.hr = 0;
+      current_measurement.spo2 = 0;
+      current_measurement.waveform_hr = 0;
+      current_measurement.waveform_hr_max = 100;
+      current_measurement.waveform_spo2 = 0;
+      current_measurement.waveform_spo2_max = 100;
+    }
 
     // Notify subscribers.
     if (callback_on_update != NULL) {

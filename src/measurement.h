@@ -45,8 +45,8 @@ typedef struct {
 
 typedef struct {
   // Derived measurements.
-  uint16_t hr;
-  uint8_t spo2;
+  int hr;
+  int spo2;
   // Data for drawing the waveform;
   float waveform_hr;
   float waveform_hr_max;
@@ -58,8 +58,8 @@ typedef struct {
   // GPIOs that turns the LED on.
   uint32_t gpio;
   // Duty cycle.
-  uint8_t duty_on;
-  uint8_t duty_wait;
+  uint16_t duty_on;
+  uint16_t duty_wait;
 } led_config_t;
 
 typedef void (*measurement_update_callback_t)(const measurement_t*);
