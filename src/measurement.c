@@ -92,6 +92,7 @@ dc_filter_t dc_filter_ir = {0.0, 0.0};
 dc_filter_t dc_filter_red = {0.0, 0.0};
 mean_diff_filter_t mean_diff_ir = { .index = 0, .sum = 0.0, .count = 0 };
 mean_diff_filter_t rolling_mean_ir = { .index = 0, .sum = 0.0, .count = 0 };
+mean_diff_filter_t rolling_mean_pulse = { .index = 0, .sum = 0.0, .count = 0 };
 
 // Pulse detection state.
 enum {
@@ -286,6 +287,7 @@ int measurement_detect_pulse(float value)
     pulse_current_bpm = 0.0;
     pulse_beats = 0;
     pulse_present = 0;
+    memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
     return 0;
   }
 
@@ -294,6 +296,7 @@ int measurement_detect_pulse(float value)
     pulse_current_bpm = 0.0;
     pulse_beats = 0;
     pulse_present = 0;
+    memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
   }
 
   switch (pulse_state) {
@@ -315,12 +318,12 @@ int measurement_detect_pulse(float value)
 
         // Compute BPM.
         float raw_bpm = 60000.0 / (float) beat_duration;
-        // TODO: Moving average for BPM.
         if (raw_bpm > 10.0 && raw_bpm < 300.0) {
           pulse_beats++;
+          float bpm = measurement_mean_diff(raw_bpm, &rolling_mean_pulse, 0);
 
           if (pulse_beats > 3) {
-            pulse_current_bpm = raw_bpm;
+            pulse_current_bpm = bpm;
             pulse_beats = 3;
             pulse_present = 1;
           }
