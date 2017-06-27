@@ -94,7 +94,11 @@ void gui_measurement_update(const measurement_t *measurement)
     gfx_puts("SpO2%");
 
     if (measurement->spo2) {
-      snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->spo2);
+      if (measurement->spo2 > 0 && measurement->spo2 <= 99) {
+        snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->spo2);
+      } else {
+        snprintf(text_buffer, sizeof(text_buffer), "??");
+      }
     } else {
       snprintf(text_buffer, sizeof(text_buffer), "--");
     }

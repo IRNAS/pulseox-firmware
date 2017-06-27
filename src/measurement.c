@@ -20,6 +20,8 @@
 #include "clock.h"
 #include "gfx.h"
 #include "uart.h"
+#include "spo2.h"
+#include "qfplib/qfplib.h"
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
@@ -73,9 +75,15 @@ led_config_t led_config[] = {
     .duty_on = 1000,
     .duty_wait = 4
   },
-  // LED4 - Yellow (590nm)
+  // LED4 - Yellow (590nm).
   {
     .gpio = (LED_PIN1 | LED_PIN2 | (LED_PIN3 << 16)),
+    .duty_on = 1000,
+    .duty_wait = 4
+  },
+  // Ambient light LED (e.g., all LEDs off).
+  {
+    .gpio = ((LED_PIN1 | LED_PIN2 | LED_PIN3) << 16),
     .duty_on = 1000,
     .duty_wait = 4
   }
@@ -86,6 +94,7 @@ const uint8_t LED_IR = 0;
 const uint8_t LED_RED = 1;
 const uint8_t LED_ORANGE = 2;
 const uint8_t LED_YELLOW = 3;
+const uint8_t LED_AMBIENT = 4;
 
 // Filters.
 dc_filter_t dc_filter_ir = {0.0, 0.0};
@@ -108,8 +117,17 @@ uint8_t pulse_beats = 0;
 uint8_t pulse_present = 0;
 float pulse_previous_value = 0.0;
 float pulse_current_bpm = 0.0;
-const float PULSE_THRESHOLD = 10.0;
-const float PULSE_RESET_THRESHOLD = 500.0;
+
+#define PULSE_THRESHOLD 10.0
+#define PULSE_RESET_THRESHOLD 500.0
+
+// Red/IR ratio calculation.
+float ac_sqsum_ir = 0.0;
+float ac_sqsum_red = 0.0;
+uint16_t spo2_samples = 0;
+uint16_t spo2_beats = 0;
+
+#define SPO2_UPDATE_BEATS 3
 
 // Sampling frequency.
 uint32_t last_measurement = 0;
@@ -218,12 +236,7 @@ uint16_t measurement_read_wavelength(uint8_t led_index)
   uint16_t result = detector_read();
   clock_usleep(DETECTOR_TIMINGS_FALL_TIME);
 
-  // Reduce duty cycle when detector is saturated.
-  /*if (result > 3800 && config->duty_on >= 1) {
-    config->duty_on--;
-  } else if (result < 1000 && config->duty_on < 10) {
-    config->duty_on++;
-  }*/
+  // TODO: Automatically adjust LED duty cycle.
 
   return result;
 }
@@ -233,12 +246,12 @@ raw_measurement_t measurement_read()
   raw_measurement_t result;
 
   // TODO: Read other wavelengths.
-  //result.orange = measurement_read_wavelength(LED_ORANGE);
-  //result.yellow = measurement_read_wavelength(LED_YELLOW);
+  // result.orange = measurement_read_wavelength(LED_ORANGE);
+  // result.yellow = measurement_read_wavelength(LED_YELLOW);
 
   result.ir = measurement_read_wavelength(LED_IR);
-  result.red = measurement_read_wavelength(LED_RED);
-  // TODO: Also read ambient noise to subtract from the signals.
+  result.ambient = measurement_read_wavelength(LED_AMBIENT);
+  result.red = measurement_read_wavelength(LED_ORANGE);
 
   return result;
 }
@@ -362,12 +375,39 @@ void measurement_update()
     // Red.
     dc_filter_red = measurement_dc_removal((float) raw.red, dc_filter_red.w, DC_FILTER_ALPHA);
 
+    // Normalize IR and red AC by their DC components.
+    float norm_ir = dc_filter_ir.result / dc_filter_ir.w;
+    float norm_red = dc_filter_red.result / dc_filter_red.w;
+
+    ac_sqsum_ir += norm_ir * norm_ir;
+    ac_sqsum_red += norm_red * norm_red;
+    spo2_samples++;
+
     // Perform pulse detection.
-    measurement_detect_pulse(mean_ir);
+    if (measurement_detect_pulse(mean_ir)) {
+      spo2_beats++;
+    }
 
     // Compute derived measurements.
     if (pulse_present) {
       current_measurement.hr = (int) pulse_current_bpm;
+
+      if (spo2_beats >= SPO2_UPDATE_BEATS) {
+#ifndef PULSEOX_DEBUG
+        float ratio = qfp_fln(qfp_fsqrt(ac_sqsum_red / spo2_samples)) / qfp_fln(qfp_fsqrt(ac_sqsum_ir / spo2_samples));
+        current_measurement.spo2 = spo2_lookup(ratio);
+#endif
+
+        // Reset readings.
+        ac_sqsum_ir = 0.0;
+        ac_sqsum_red = 0.0;
+        spo2_samples = 0;
+        spo2_beats = 0;
+      }
+
+      // TODO: Provide data for the waveform.
+      current_measurement.waveform_spo2 = 0;
+      current_measurement.waveform_spo2_max = 100;
     } else {
       // No pulse present, SpO2 should be ignored.
       current_measurement.hr = 0;
@@ -387,11 +427,16 @@ void measurement_update()
     sample_count++;
 
     // Output measurements.
-    uart_printf("%d,%u,%d,%d\r\n",
+    uart_printf("%d,%u,%d,%d,%d,%d,%d,%u,%u\r\n",
       (int) now,
       raw.ir,
       (int) (dc_filter_ir.result * 100),
-      (int) (mean_ir * 100)
+      (int) (mean_ir * 100),
+      (int) (dc_filter_red.result * 100),
+      (int) dc_filter_ir.w,
+      (int) dc_filter_red.w,
+      raw.red,
+      raw.ambient
     );
   }
 

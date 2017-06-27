@@ -65,7 +65,7 @@ int main()
   gfx_setCursor(0, 0);
   gfx_setTextSize(1);
   gfx_setTextColor(0x80, 0x00);
-  gfx_puts("GliaX Boot.\n===========\nPress U6 for\nconsole.");
+  gfx_puts("GliaX debug\n===========\nPress U6 for\nconsole.");
   lcd_refresh();
 
   uint8_t console_enabled = 0;

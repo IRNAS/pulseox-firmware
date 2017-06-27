@@ -1,4 +1,7 @@
+enable_language(ASM)
+
 set(SOURCES
+  qfplib/qfplib.s
   clock.c
   uart.c
   measurement.c

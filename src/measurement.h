@@ -29,6 +29,7 @@ typedef struct {
   uint16_t orange;
   uint16_t yellow;
   uint16_t ir;
+  uint16_t ambient;
 } raw_measurement_t;
 
 typedef struct {
