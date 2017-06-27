@@ -251,7 +251,7 @@ raw_measurement_t measurement_read()
 
   result.ir = measurement_read_wavelength(LED_IR);
   result.ambient = measurement_read_wavelength(LED_AMBIENT);
-  result.red = measurement_read_wavelength(LED_ORANGE);
+  result.red = measurement_read_wavelength(LED_RED);
 
   return result;
 }
