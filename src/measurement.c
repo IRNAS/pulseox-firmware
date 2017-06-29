@@ -404,18 +404,22 @@ void measurement_update()
         spo2_samples = 0;
         spo2_beats = 0;
       }
-
-      // TODO: Provide data for the waveform.
-      current_measurement.waveform_spo2 = 0;
-      current_measurement.waveform_spo2_max = 100;
     } else {
       // No pulse present, SpO2 should be ignored.
       current_measurement.hr = 0;
       current_measurement.spo2 = 0;
-      current_measurement.waveform_hr = 0;
-      current_measurement.waveform_hr_max = 100;
-      current_measurement.waveform_spo2 = 0;
-      current_measurement.waveform_spo2_max = 100;
+    }
+
+    // Provide data for the waveform.
+    // TODO: Determine minimum and maximum based on some last samples?
+    current_measurement.waveform_spo2_min = -20;
+    current_measurement.waveform_spo2_max = 20;
+    current_measurement.waveform_spo2 = mean_ir;
+    if (current_measurement.waveform_spo2 < current_measurement.waveform_spo2_min) {
+      current_measurement.waveform_spo2 = current_measurement.waveform_spo2_min;
+    }
+    if (current_measurement.waveform_spo2 > current_measurement.waveform_spo2_max) {
+      current_measurement.waveform_spo2 = current_measurement.waveform_spo2_max;
     }
 
     // Notify subscribers.

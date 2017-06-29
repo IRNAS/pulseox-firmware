@@ -49,9 +49,8 @@ typedef struct {
   int hr;
   int spo2;
   // Data for drawing the waveform;
-  float waveform_hr;
-  float waveform_hr_max;
   float waveform_spo2;
+  float waveform_spo2_min;
   float waveform_spo2_max;
 } measurement_t;
 

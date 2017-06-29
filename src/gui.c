@@ -118,7 +118,12 @@ void gui_measurement_update(const measurement_t *measurement)
   // Update current waveform if we have enough data.
   if (clock_millis() - state.waveform_last_update >= state.waveform_pixel_ms) {
     float value = (state.waveform_bucket / (float) state.waveform_bucket_size);
-    value = (value * (float) GUI_WAVEFORM_HEIGHT) / measurement->waveform_spo2_max;
+    value = (
+      (value - measurement->waveform_spo2_min) * (float) GUI_WAVEFORM_HEIGHT
+    ) / (
+      measurement->waveform_spo2_max - measurement->waveform_spo2_min
+    );
+
     if (value > (float) GUI_WAVEFORM_HEIGHT) {
       value = (float) GUI_WAVEFORM_HEIGHT;
     }
