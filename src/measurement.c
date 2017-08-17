@@ -360,6 +360,48 @@ int measurement_detect_pulse(float value)
   return 0;
 }
 
+#ifdef PULSEOX_BOARD_DIAGNOSTIC
+#include "lcd.h"
+
+void measurement_diagnostic(uint8_t led_index)
+{
+  led_config_t *config = &led_config[led_index];
+
+  led_turn_on(config->gpio);
+  clock_msleep(1000);
+  led_turn_off();
+}
+
+void measurement_update()
+{
+  gfx_setTextSize(1);
+  gfx_setTextColor(0x80, 0x00);
+
+  gfx_fillScreen(0x00);
+  gfx_setCursor(0, 0);
+  gfx_puts("IR ON");
+  lcd_refresh();
+  measurement_diagnostic(LED_IR);
+
+  gfx_fillScreen(0x00);
+  gfx_setCursor(0, 0);
+  gfx_puts("RED ON");
+  lcd_refresh();
+  measurement_diagnostic(LED_RED);
+
+  gfx_fillScreen(0x00);
+  gfx_setCursor(0, 0);
+  gfx_puts("YELLOW ON");
+  lcd_refresh();
+  measurement_diagnostic(LED_YELLOW);
+
+  gfx_fillScreen(0x00);
+  gfx_setCursor(0, 0);
+  gfx_puts("ORANGE ON");
+  lcd_refresh();
+  measurement_diagnostic(LED_ORANGE);
+}
+#else
 void measurement_update()
 {
   uint32_t now = clock_millis();
@@ -458,3 +500,4 @@ void measurement_update()
     sample_count = 0;
   }
 }
+#endif
