@@ -16,36 +16,23 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef PULSEOX_GUI_H
-#define PULSEOX_GUI_H
+#ifndef PULSEOX_ADC_H
+#define PULSEOX_ADC_H
 
 #include <stdint.h>
 
-#include "measurement.h"
-
-// Waveform width (in milliseconds).
-#define GUI_WAVEFORM_WIDTH 5000
-// Waveform maximum height (in pixels).
-#define GUI_WAVEFORM_HEIGHT 15
-// Waveform gap between current and old measurements (in pixels).
-#define GUI_WAVEFORM_GAP 10
-
-// Low battery warning blink time (in ms).
-#define GUI_BATTERY_LOW_BLINK 500
+// Supported ADC channels.
+#define ADC_CHANNEL_MEASUREMENT 0
+#define ADC_CHANNEL_BATTERY 1
 
 /**
- * Setup GUI.
+ * Setup ADC.
  */
-void gui_init(uint16_t width, uint16_t height);
+void adc_init();
 
 /**
- * Update GUI after a measurement.
+ * Read from given channel.
  */
-void gui_measurement_update(const measurement_t *measurement);
-
-/**
- * Render the GUI.
- */
-void gui_render();
+uint16_t adc_read(uint8_t channel);
 
 #endif

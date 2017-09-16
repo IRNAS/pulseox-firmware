@@ -17,7 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "clock.h"
+#include "adc.h"
 #include "uart.h"
+#include "battery.h"
 #include "measurement.h"
 #include "lcd.h"
 #include "gfx.h"
@@ -49,6 +51,8 @@ int main()
 {
   // Initialize subsystems.
   clock_init();
+  adc_init();
+  battery_init();
   lcd_init();
   gfx_init(lcd_draw_pixel, LCD_WIDTH, LCD_HEIGHT);
 #ifdef PULSEOX_DEBUG
@@ -111,6 +115,9 @@ int main()
 
     // Refresh LCD.
     lcd_refresh();
+
+    // Update battery status.
+    battery_update();
   }
 
   return 0;

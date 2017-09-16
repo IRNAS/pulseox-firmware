@@ -18,6 +18,7 @@
  */
 #include "measurement.h"
 #include "clock.h"
+#include "adc.h"
 #include "gfx.h"
 #include "uart.h"
 #include "spo2.h"
@@ -25,7 +26,6 @@
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
-#include <libopencm3/stm32/adc.h>
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -38,13 +38,12 @@
 
 #define DETECTOR_PORT GPIOA
 #define DETECTOR_PIN_ANALOG_IN GPIO0
-#define DETECTOR_PIN_VDD GPIO1
+// XXX: Due to a recent change in the PCB, the detector is always powered.
+// #define DETECTOR_PIN_VDD GPIO1
 
 // Timings in microseconds.
 #define DETECTOR_TIMINGS_RISE_TIME 10
 #define DETECTOR_TIMINGS_FALL_TIME 10
-
-#define ADC_CHANNEL0 0x00
 
 void detector_power_on();
 void detector_power_off();
@@ -147,7 +146,6 @@ void measurement_init(measurement_update_callback_t on_update)
 
   memset(&current_measurement, 0, sizeof(current_measurement));
 
-  rcc_periph_clock_enable(RCC_ADC);
   rcc_periph_clock_enable(RCC_GPIOA);
 
   // Setup LED GPIOs.
@@ -158,47 +156,30 @@ void measurement_init(measurement_update_callback_t on_update)
 
   // Setup detector GPIOs.
   gpio_mode_setup(DETECTOR_PORT, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, DETECTOR_PIN_ANALOG_IN);
-  gpio_mode_setup(DETECTOR_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, DETECTOR_PIN_VDD);
-  gpio_clear(DETECTOR_PORT, DETECTOR_PIN_VDD);
-
-  // Setup ADC for detector.
-  uint8_t adc_channel_array[] = { ADC_CHANNEL0 };
-
-  adc_power_off(ADC1);
-  adc_set_clk_source(ADC1, ADC_CLKSOURCE_ADC);
-  adc_calibrate(ADC1);
-  adc_set_operation_mode(ADC1, ADC_MODE_SCAN);
-  adc_disable_external_trigger_regular(ADC1);
-  adc_set_right_aligned(ADC1);
-  adc_set_sample_time_on_all_channels(ADC1, ADC_SMPTIME_041DOT5);
-  adc_set_regular_sequence(ADC1, 1, adc_channel_array);
-  adc_set_resolution(ADC1, ADC_RESOLUTION_12BIT);
-  adc_disable_analog_watchdog(ADC1);
-  adc_power_on(ADC1);
-
-  // Wait for ADC to start up.
-  clock_msleep(100);
+  // XXX: Due to a recent change in the PCB, the detector is always powered.
+  // gpio_mode_setup(DETECTOR_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, DETECTOR_PIN_VDD);
+  // gpio_clear(DETECTOR_PORT, DETECTOR_PIN_VDD);
 
   detector_power_on();
 }
 
 void detector_power_on()
 {
-  gpio_set(DETECTOR_PORT, DETECTOR_PIN_VDD);
+  // XXX: Due to a recent change in the PCB, the detector is always powered.
+  // gpio_set(DETECTOR_PORT, DETECTOR_PIN_VDD);
   clock_usleep(DETECTOR_TIMINGS_RISE_TIME);
 }
 
 void detector_power_off()
 {
-  gpio_clear(DETECTOR_PORT, DETECTOR_PIN_VDD);
+  // XXX: Due to a recent change in the PCB, the detector is always powered.
+  // gpio_clear(DETECTOR_PORT, DETECTOR_PIN_VDD);
   clock_usleep(DETECTOR_TIMINGS_FALL_TIME);
 }
 
 uint16_t detector_read()
 {
-  adc_start_conversion_regular(ADC1);
-  while (!(adc_eoc(ADC1)));
-  return adc_read_regular(ADC1);
+  return adc_read(ADC_CHANNEL_MEASUREMENT);
 }
 
 // Ensure this is inlined for timings to be correct.

@@ -16,36 +16,30 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef PULSEOX_GUI_H
-#define PULSEOX_GUI_H
+#ifndef PULSEOX_BATTERY_H
+#define PULSEOX_BATTERY_H
 
-#include <stdint.h>
-
-#include "measurement.h"
-
-// Waveform width (in milliseconds).
-#define GUI_WAVEFORM_WIDTH 5000
-// Waveform maximum height (in pixels).
-#define GUI_WAVEFORM_HEIGHT 15
-// Waveform gap between current and old measurements (in pixels).
-#define GUI_WAVEFORM_GAP 10
-
-// Low battery warning blink time (in ms).
-#define GUI_BATTERY_LOW_BLINK 500
+// The percent charge when the battery is considered low.
+#define BATTERY_LOW_PERCENT_CHARGE 30
 
 /**
- * Setup GUI.
+ * Setup battery managemnet.
  */
-void gui_init(uint16_t width, uint16_t height);
+void battery_init();
 
 /**
- * Update GUI after a measurement.
+ * Perform battery voltage measurement.
  */
-void gui_measurement_update(const measurement_t *measurement);
+void battery_update();
 
 /**
- * Render the GUI.
+ * Return the percentage of battery charge.
  */
-void gui_render();
+int battery_get_percent_charge();
+
+/**
+ * Return whether the battery charge is currently considered low.
+ */
+int battery_is_low();
 
 #endif

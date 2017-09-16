@@ -3,6 +3,8 @@ enable_language(ASM)
 set(SOURCES
   qfplib/qfplib.s
   clock.c
+  adc.c
+  battery.c
   uart.c
   measurement.c
   lcd.c

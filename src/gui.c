@@ -19,6 +19,7 @@
 #include "gui.h"
 #include "gfx.h"
 #include "clock.h"
+#include "battery.h"
 
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -41,6 +42,9 @@ struct gui_state {
   // Current waveform bucket.
   float waveform_bucket;
   uint32_t waveform_bucket_size;
+  // Low battery blinking.
+  uint8_t low_battery_visible;
+  uint32_t low_battery_toggled;
 };
 
 // GUI state.
@@ -61,6 +65,9 @@ void gui_init(uint16_t width, uint16_t height)
   state.waveform_last_update = 0;
   state.waveform_pixel_ms = GUI_WAVEFORM_WIDTH / width;
 
+  state.low_battery_visible = 0;
+  state.low_battery_toggled = 0;
+
   gfx_fillScreen(0x00);
 }
 
@@ -70,7 +77,7 @@ void gui_measurement_update(const measurement_t *measurement)
   if (measurement->hr != state.display_hr) {
     gfx_setTextSize(1);
     gfx_setTextColor(0x80, 0x00);
-    gfx_setCursor(90, 0);
+    gfx_setCursor(90, 12);
     gfx_puts("HR");
 
     if (measurement->hr) {
@@ -80,9 +87,9 @@ void gui_measurement_update(const measurement_t *measurement)
     }
 
     gfx_setTextSize(2);
-    gfx_setCursor(80, 14);
+    gfx_setCursor(80, 26);
     gfx_puts("   ");
-    gfx_setCursor(80, 14);
+    gfx_setCursor(80, 26);
     gfx_puts(text_buffer);
     state.display_hr = measurement->hr;
   }
@@ -147,5 +154,32 @@ void gui_measurement_update(const measurement_t *measurement)
 
 void gui_render()
 {
-  // TODO.
+  if (battery_is_low()) {
+    // Output battery low warning.
+    gfx_setTextSize(1);
+    gfx_setTextColor(0x80, 0x00);
+    gfx_setCursor(75, 0);
+
+    // Blink the warning.
+    uint32_t now = clock_millis();
+    if (now - state.low_battery_toggled > GUI_BATTERY_LOW_BLINK) {
+      if (state.low_battery_visible) {
+        gfx_puts("      ");
+        state.low_battery_visible = 0;
+      } else {
+        gfx_puts("BAT LO");
+        state.low_battery_visible = 1;
+      }
+
+      state.low_battery_toggled = now;
+    }
+  } else if (state.low_battery_visible) {
+    // Battery is no longer low, hide the warning.
+    gfx_setTextSize(1);
+    gfx_setTextColor(0x80, 0x00);
+    gfx_setCursor(75, 0);
+    gfx_puts("      ");
+
+    state.low_battery_visible = 0;
+  }
 }
