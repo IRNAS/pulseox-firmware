@@ -21,8 +21,27 @@
 
 #include <stdint.h>
 
+// Mean filter window size.
 #define MEAN_FILTER_SIZE 15
+// DC filter alpha.
 #define DC_FILTER_ALPHA 0.95
+
+// Number of beats required for initial pulse detection.
+#define PULSE_INITIAL_BEATS 3
+// Pulse detection threshold.
+#define PULSE_THRESHOLD 10.0
+// Pulse reset threshold.
+#define PULSE_RESET_THRESHOLD 500.0
+// Pulse timeout (in ms). If no pulse detected for this time, reset readings. This
+// is usually not needed as PULSE_RESET_THRESHOLD resets early.
+#define PULSE_RESET_TIMEOUT 5000
+
+// Compute SpO2 every so many heart beats.
+#define SPO2_UPDATE_BEATS 3
+// Waveform display min/max values. These settings only affect the waveform
+// visualization not any measurements.
+#define SPO2_WAVEFORM_MIN -20
+#define SPO2_WAVEFORM_MAX 20
 
 typedef struct {
   uint16_t red;

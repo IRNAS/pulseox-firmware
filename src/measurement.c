@@ -117,16 +117,11 @@ uint8_t pulse_present = 0;
 float pulse_previous_value = 0.0;
 float pulse_current_bpm = 0.0;
 
-#define PULSE_THRESHOLD 10.0
-#define PULSE_RESET_THRESHOLD 500.0
-
 // Red/IR ratio calculation.
 float ac_sqsum_ir = 0.0;
 float ac_sqsum_red = 0.0;
 uint16_t spo2_samples = 0;
 uint16_t spo2_beats = 0;
-
-#define SPO2_UPDATE_BEATS 3
 
 // Sampling frequency.
 uint32_t last_measurement = 0;
@@ -286,7 +281,7 @@ int measurement_detect_pulse(float value)
   }
 
   // If no pulse detected for some time, reset.
-  if (pulse_beats > 0 && clock_millis() - pulse_last_timestamp > 5000) {
+  if (pulse_beats > 0 && clock_millis() - pulse_last_timestamp > PULSE_RESET_TIMEOUT) {
     pulse_current_bpm = 0.0;
     pulse_beats = 0;
     pulse_present = 0;
@@ -316,9 +311,9 @@ int measurement_detect_pulse(float value)
           pulse_beats++;
           float bpm = measurement_mean_diff(raw_bpm, &rolling_mean_pulse, 0);
 
-          if (pulse_beats > 3) {
+          if (pulse_beats > PULSE_INITIAL_BEATS) {
             pulse_current_bpm = bpm;
-            pulse_beats = 3;
+            pulse_beats = PULSE_INITIAL_BEATS;
             pulse_present = 1;
           }
         }
@@ -435,8 +430,8 @@ void measurement_update()
 
     // Provide data for the waveform.
     // TODO: Determine minimum and maximum based on some last samples?
-    current_measurement.waveform_spo2_min = -20;
-    current_measurement.waveform_spo2_max = 20;
+    current_measurement.waveform_spo2_min = SPO2_WAVEFORM_MIN;
+    current_measurement.waveform_spo2_max = SPO2_WAVEFORM_MAX;
     current_measurement.waveform_spo2 = mean_ir;
     if (current_measurement.waveform_spo2 < current_measurement.waveform_spo2_min) {
       current_measurement.waveform_spo2 = current_measurement.waveform_spo2_min;
