@@ -21,15 +21,13 @@
 
 #include <stdint.h>
 
-// Mean filter window size.
-#define MEAN_FILTER_SIZE 15
 // DC filter alpha.
 #define DC_FILTER_ALPHA 0.95
 
 // Number of beats required for initial pulse detection.
 #define PULSE_INITIAL_BEATS 3
 // Pulse detection threshold.
-#define PULSE_THRESHOLD 10.0
+#define PULSE_THRESHOLD 5.0
 // Pulse reset threshold.
 #define PULSE_RESET_THRESHOLD 500.0
 // Pulse timeout (in ms). If no pulse detected for this time, reset readings. This
@@ -50,18 +48,6 @@ typedef struct {
   uint16_t ir;
   uint16_t ambient;
 } raw_measurement_t;
-
-typedef struct {
-  float w;
-  float result;
-} dc_filter_t;
-
-typedef struct {
-  float values[MEAN_FILTER_SIZE];
-  uint8_t index;
-  float sum;
-  uint8_t count;
-} mean_diff_filter_t;
 
 typedef struct {
   // Derived measurements.

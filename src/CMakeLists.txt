@@ -6,6 +6,7 @@ set(SOURCES
   adc.c
   battery.c
   uart.c
+  dsp.c
   measurement.c
   lcd.c
   gfx.c

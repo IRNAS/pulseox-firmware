@@ -21,6 +21,7 @@
 #include "adc.h"
 #include "gfx.h"
 #include "uart.h"
+#include "dsp.h"
 #include "spo2.h"
 #include "qfplib/qfplib.h"
 
@@ -96,11 +97,12 @@ const uint8_t LED_YELLOW = 3;
 const uint8_t LED_AMBIENT = 4;
 
 // Filters.
-dc_filter_t dc_filter_ir = {0.0, 0.0};
-dc_filter_t dc_filter_red = {0.0, 0.0};
-mean_diff_filter_t mean_diff_ir = { .index = 0, .sum = 0.0, .count = 0 };
-mean_diff_filter_t rolling_mean_ir = { .index = 0, .sum = 0.0, .count = 0 };
-mean_diff_filter_t rolling_mean_pulse = { .index = 0, .sum = 0.0, .count = 0 };
+dc_filter_t dc_filter_ir = { 0.0, 0.0 };
+dc_filter_t dc_filter_red = { 0.0, 0.0 };
+mean_filter_t mean_diff_ir = { .index = 0, .sum = 0.0, .count = 0 };
+mean_filter_t rolling_mean_ir = { .index = 0, .sum = 0.0, .count = 0 };
+mean_filter_t rolling_mean_pulse = { .index = 0, .sum = 0.0, .count = 0 };
+butterworth_filter_t butt_filter_ir = { .v = {0., 0., 0.} };
 
 // Pulse detection state.
 enum {
@@ -232,40 +234,6 @@ raw_measurement_t measurement_read()
   return result;
 }
 
-dc_filter_t measurement_dc_removal(float x, float prev_w, float alpha)
-{
-  dc_filter_t filter;
-  filter.w = x + alpha * prev_w;
-  filter.result = filter.w - prev_w;
-
-  return filter;
-}
-
-float measurement_mean_diff(float value, mean_diff_filter_t *filter, int diff)
-{
-  float avg = 0;
-
-  filter->sum -= filter->values[filter->index];
-  filter->values[filter->index] = value;
-  filter->sum += filter->values[filter->index];
-
-  filter->index++;
-  filter->index = filter->index % MEAN_FILTER_SIZE;
-
-  if (filter->count < MEAN_FILTER_SIZE) {
-    filter->count++;
-  }
-
-  avg = filter->sum / filter->count;
-  if (diff) {
-    // Difference from mean.
-    return avg - value;
-  } else {
-    // Rolling mean.
-    return avg;
-  }
-}
-
 int measurement_detect_pulse(float value)
 {
   if (value >= PULSE_RESET_THRESHOLD) {
@@ -309,7 +277,7 @@ int measurement_detect_pulse(float value)
         float raw_bpm = 60000.0 / (float) beat_duration;
         if (raw_bpm > 10.0 && raw_bpm < 300.0) {
           pulse_beats++;
-          float bpm = measurement_mean_diff(raw_bpm, &rolling_mean_pulse, 0);
+          float bpm = filter_mean(&rolling_mean_pulse, raw_bpm, 0);
 
           if (pulse_beats > PULSE_INITIAL_BEATS) {
             pulse_current_bpm = bpm;
@@ -386,23 +354,24 @@ void measurement_update()
     raw_measurement_t raw = measurement_read();
 
     // IR.
-    dc_filter_ir = measurement_dc_removal((float) raw.ir, dc_filter_ir.w, DC_FILTER_ALPHA);
-    float mean_ir = measurement_mean_diff(dc_filter_ir.result, &mean_diff_ir, 1);
-    mean_ir = measurement_mean_diff(mean_ir, &rolling_mean_ir, 0);
+    float dc_ir = filter_dc(&dc_filter_ir, (float) raw.ir, DC_FILTER_ALPHA);
+    float mean_ir = filter_mean(&mean_diff_ir, dc_ir, 1);
+    mean_ir = filter_mean(&rolling_mean_ir, mean_ir, 0);
+    float butt_ir = filter_butterworth_lp(&butt_filter_ir, mean_ir);
 
     // Red.
-    dc_filter_red = measurement_dc_removal((float) raw.red, dc_filter_red.w, DC_FILTER_ALPHA);
+    float dc_red = filter_dc(&dc_filter_red, (float) raw.red, DC_FILTER_ALPHA);
 
     // Normalize IR and red AC by their DC components.
-    float norm_ir = dc_filter_ir.result / dc_filter_ir.w;
-    float norm_red = dc_filter_red.result / dc_filter_red.w;
+    float norm_ir = dc_ir / dc_filter_ir.w;
+    float norm_red = dc_red / dc_filter_red.w;
 
     ac_sqsum_ir += norm_ir * norm_ir;
     ac_sqsum_red += norm_red * norm_red;
     spo2_samples++;
 
     // Perform pulse detection.
-    if (measurement_detect_pulse(mean_ir)) {
+    if (measurement_detect_pulse(butt_ir)) {
       spo2_beats++;
     }
 
@@ -452,9 +421,9 @@ void measurement_update()
     uart_printf("%d,%u,%d,%d,%d,%d,%d,%u,%u\r\n",
       (int) now,
       raw.ir,
-      (int) (dc_filter_ir.result * 100),
+      (int) (dc_ir * 100),
       (int) (mean_ir * 100),
-      (int) (dc_filter_red.result * 100),
+      (int) (dc_red * 100),
       (int) dc_filter_ir.w,
       (int) dc_filter_red.w,
       raw.red,
