@@ -30,6 +30,7 @@
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
+#include <stdlib.h>
 
 #define DEBUG_BUTTON_PORT GPIOF
 #define DEBUG_U6 GPIO0
@@ -96,7 +97,7 @@ int main()
     clock_msleep(2000);
 
     uart_init();
-    uart_printf("Debug console enabled.\r\n");
+    uart_puts("Debug console enabled.\r\n");
   } else {
     gfx_fillScreen(0x00);
     gfx_setCursor(0, 0);

@@ -5,6 +5,9 @@ if(NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR "Cross compiling only. Please use -DCMAKE_TOOLCHAIN_FILE=/PATH/TO/TOOLCHAIN_FILE .")
 endif(NOT CMAKE_CROSSCOMPILING)
 
+# Uncomment to build debug firmware.
+# set(DEBUG TRUE)
+
 # Libopencm3.
 set(LIBOPENCM3_DIR ${CMAKE_SOURCE_DIR}/libopencm3)
 add_custom_target(libopencm3 make WORKING_DIRECTORY ${LIBOPENCM3_DIR})
@@ -13,7 +16,9 @@ include_directories(${LIBOPENCM3_DIR}/include)
 
 # Target architecture compile flags.
 add_definitions(-DSTM32F0)
-# add_definitions(-DPULSEOX_DEBUG)
+if(DEBUG)
+    add_definitions(-DPULSEOX_DEBUG)
+endif(DEBUG)
 # add_definitions(-DPULSEOX_BOARD_DIAGNOSTIC)
 set(CMAKE_SYSTEM_PROCESSOR "cortex-m0")
 set(TARGET_PLATFORM_FLAGS "-mcpu=${CMAKE_SYSTEM_PROCESSOR} -mthumb -msoft-float")

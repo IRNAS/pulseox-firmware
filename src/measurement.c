@@ -380,10 +380,8 @@ void measurement_update()
       current_measurement.hr = (int) pulse_current_bpm;
 
       if (spo2_beats >= SPO2_UPDATE_BEATS) {
-#ifndef PULSEOX_DEBUG
         float ratio = qfp_fln(qfp_fsqrt(ac_sqsum_red / spo2_samples)) / qfp_fln(qfp_fsqrt(ac_sqsum_ir / spo2_samples));
         current_measurement.spo2 = spo2_lookup(ratio);
-#endif
 
         // Reset readings.
         ac_sqsum_ir = 0.0;
@@ -417,18 +415,21 @@ void measurement_update()
     last_measurement = now;
     sample_count++;
 
+#ifdef PULSEOX_DEBUG
     // Output measurements.
-    uart_printf("%d,%u,%d,%d,%d,%d,%d,%u,%u\r\n",
-      (int) now,
-      raw.ir,
-      (int) (dc_ir * 100),
-      (int) (mean_ir * 100),
-      (int) (dc_red * 100),
-      (int) dc_filter_ir.w,
-      (int) dc_filter_red.w,
-      raw.red,
-      raw.ambient
-    );
+    uart_puti((int) now);
+    uart_putc(',');
+    uart_puti(raw.ir);
+    uart_putc(',');
+    uart_puti((int) (dc_ir * 100));
+    uart_putc(',');
+    uart_puti((int) (mean_ir * 100));
+    uart_putc(',');
+    uart_puti((int) (butt_ir * 100));
+    uart_putc(',');
+    uart_puti((int) (dc_red * 100));
+    uart_puts("\r\n");
+#endif
   }
 
   if (now - last_report > 1000) {

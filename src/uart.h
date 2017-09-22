@@ -19,19 +19,26 @@
 #ifndef PULSEOX_UART_H
 #define PULSEOX_UART_H
 
-#define _GNU_SOURCE
-#include <stdio.h>
-
+/**
+ * Initialize UART. This disables the programming port and prevents
+ * the firmware from being updated, so it should be initialized only
+ * conditionally.
+ */
 void uart_init();
 
-FILE *uart_stream();
+/**
+ * Writes a single character to UART.
+ */
+void uart_putc(char character);
 
-#ifdef PULSEOX_DEBUG
-#define uart_printf(...) if (uart_stream() != NULL) { \
-                           fprintf(uart_stream(), __VA_ARGS__); \
-                         }
-#else
-#define uart_printf(...)
-#endif
+/**
+ * Writes a NULL-terminated string to UART.
+ */
+void uart_puts(char *text);
+
+/**
+ * Writes an integer to UART.
+ */
+void uart_puti(int number);
 
 #endif

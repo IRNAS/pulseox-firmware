@@ -22,17 +22,8 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/usart.h>
 
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <errno.h>
-#include <stddef.h>
-#include <sys/types.h>
-
-static ssize_t _iord(void *_cookie, char *_buf, size_t _n);
-static ssize_t _iowr(void *_cookie, const char *_buf, size_t _n);
-
-// Global UART handle.
-static FILE *uart_handle = NULL;
+// UART initialization flag.
+uint8_t uart_initialized = 0;
 
 void uart_init()
 {
@@ -54,36 +45,45 @@ void uart_init()
 
   // Enable UART.
   usart_enable(USART1);
-
-  // Setup a custom I/O stream for the UART.
-  cookie_io_functions_t stub = { _iord, _iowr, NULL, NULL };
-  uart_handle = fopencookie(NULL, "rw+", stub);
-  /* Do not buffer the serial line */
-  setvbuf(uart_handle, NULL, _IONBF, 0);
+  uart_initialized = 1;
 }
 
-FILE *uart_stream()
+void uart_putc(char character)
 {
-  return uart_handle;
+  if (!uart_initialized) {
+    return;
+  }
+
+  usart_send_blocking(USART1, character);
 }
 
-static ssize_t _iord(void *_cookie, char *_buf, size_t _n)
+void uart_puts(char *text)
 {
-  // TODO: Implement reading from UART.
-  (void) _cookie;
-  (void) _buf;
-  (void) _n;
-  return 0;
+  for (;;) {
+    char c = *text++;
+    if (!c) break;
+    uart_putc(c);
+  }
 }
 
-static ssize_t _iowr(void *_cookie, const char *_buf, size_t _n)
+void uart_puti(int number)
 {
-  (void) _cookie;
+  char buf[8 * sizeof(int) + 1];
+  char *str = &buf[sizeof(buf) - 1];
+  int base = 10;
 
-  int written = 0;
-  while (_n-- > 0) {
-    usart_send_blocking(USART1, *_buf++);
-    written++;
-  };
-  return written;
+  if (number < 0) {
+    uart_putc('-');
+    number = -number;
+  }
+
+  *str = '\0';
+  do {
+    int m = number;
+    number /= base;
+    char c = m - base * number;
+    *--str = c < 10 ? c + '0' : c + 'A' - 10;
+  } while(number);
+
+  uart_puts(str);
 }
