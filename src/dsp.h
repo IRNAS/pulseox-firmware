@@ -51,7 +51,7 @@ float filter_dc(dc_filter_t *filter, float x, float alpha);
 float filter_mean(mean_filter_t *filter, float x, int difference);
 
 /**
- * Butterworth low-pass filter with cutoff at 1.9Hz.
+ * Butterworth low-pass filter with cutoff at 3.3Hz.
  */
 float filter_butterworth_lp(butterworth_filter_t *filter, float x);
 

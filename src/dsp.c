@@ -56,9 +56,9 @@ float filter_butterworth_lp(butterworth_filter_t *filter, float x)
 {
   filter->v[0] = filter->v[1];
   filter->v[1] = filter->v[2];
-  filter->v[2] = (3.282282253247642122e-3f * x)
-                  + (-0.84465358736528617367f * filter->v[0])
-                  + (1.83152445835229560345f * filter->v[1]);
+  filter->v[2] = (9.348688702492780056e-3f * x)
+                  + (-0.74586058058659876480f * filter->v[0])
+                  + (1.70846582577662764457f * filter->v[1]);
 
   return (filter->v[0] + filter->v[2]) + 2 * filter->v[1];
 }

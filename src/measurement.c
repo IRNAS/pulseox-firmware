@@ -103,12 +103,14 @@ mean_filter_t mean_diff_ir = { .index = 0, .sum = 0.0, .count = 0 };
 mean_filter_t rolling_mean_ir = { .index = 0, .sum = 0.0, .count = 0 };
 mean_filter_t rolling_mean_pulse = { .index = 0, .sum = 0.0, .count = 0 };
 butterworth_filter_t butt_filter_ir = { .v = {0., 0., 0.} };
+butterworth_filter_t butt_filter_spo2_ir = { .v = {0., 0., 0.} };
+butterworth_filter_t butt_filter_spo2_red = { .v = {0., 0., 0.} };
 
 // Pulse detection state.
 enum {
   PULSE_IDLE = 0,
-  PULSE_RISING = 1,
-  PULSE_FALLING = 2,
+  PULSE_FALLING = 1,
+  PULSE_RISING = 2,
 };
 
 uint8_t pulse_state = PULSE_IDLE;
@@ -223,20 +225,22 @@ raw_measurement_t measurement_read()
 {
   raw_measurement_t result;
 
-  // TODO: Read other wavelengths.
-  // result.orange = measurement_read_wavelength(LED_ORANGE);
-  // result.yellow = measurement_read_wavelength(LED_YELLOW);
-
   result.ir = measurement_read_wavelength(LED_IR);
   result.ambient = measurement_read_wavelength(LED_AMBIENT);
   result.red = measurement_read_wavelength(LED_RED);
 
+#ifdef PULSEOX_DEBUG
+  // TODO: Read other wavelengths.
+  result.orange = measurement_read_wavelength(LED_ORANGE);
+  result.yellow = measurement_read_wavelength(LED_YELLOW);
+#endif
+
   return result;
 }
 
-int measurement_detect_pulse(float value)
+int measurement_detect_pulse(uint16_t raw, float value)
 {
-  if (value >= PULSE_RESET_THRESHOLD) {
+  if (value >= PULSE_RESET_THRESHOLD || raw >= MEASUREMENT_THRESHOLD) {
     pulse_state = PULSE_IDLE;
     pulse_current_timestamp = 0;
     pulse_last_timestamp = 0;
@@ -259,17 +263,17 @@ int measurement_detect_pulse(float value)
   switch (pulse_state) {
     case PULSE_IDLE: {
       // Idle state: we wait for the value to cross the threshold.
-      if (value >= PULSE_THRESHOLD) {
-        pulse_state = PULSE_RISING;
+      if (value <= PULSE_THRESHOLD) {
+        pulse_state = PULSE_FALLING;
       }
       break;
     }
-    case PULSE_RISING: {
-      if (value > pulse_previous_value) {
-        // Still rising.
+    case PULSE_FALLING: {
+      if (value < pulse_previous_value) {
+        // Still falling.
         pulse_current_timestamp = clock_millis();
       } else {
-        // Reached the peak.
+        // Reached the bottom.
         uint32_t beat_duration = pulse_current_timestamp - pulse_last_timestamp;
         pulse_last_timestamp = pulse_current_timestamp;
 
@@ -286,14 +290,14 @@ int measurement_detect_pulse(float value)
           }
         }
 
-        pulse_state = PULSE_FALLING;
+        pulse_state = PULSE_RISING;
         return 1;
       }
       break;
     }
-    case PULSE_FALLING: {
+    case PULSE_RISING: {
       // Move into idle state when under the threshold.
-      if (value < PULSE_THRESHOLD) {
+      if (value > PULSE_THRESHOLD) {
         pulse_state = PULSE_IDLE;
       }
       break;
@@ -357,7 +361,7 @@ void measurement_update()
     float dc_ir = filter_dc(&dc_filter_ir, (float) raw.ir, DC_FILTER_ALPHA);
     float mean_ir = filter_mean(&mean_diff_ir, dc_ir, 1);
     mean_ir = filter_mean(&rolling_mean_ir, mean_ir, 0);
-    float butt_ir = filter_butterworth_lp(&butt_filter_ir, mean_ir);
+    float butt_ir = filter_butterworth_lp(&butt_filter_ir, dc_ir);
 
     // Red.
     float dc_red = filter_dc(&dc_filter_red, (float) raw.red, DC_FILTER_ALPHA);
@@ -366,21 +370,25 @@ void measurement_update()
     float norm_ir = dc_ir / dc_filter_ir.w;
     float norm_red = dc_red / dc_filter_red.w;
 
-    ac_sqsum_ir += norm_ir * norm_ir;
-    ac_sqsum_red += norm_red * norm_red;
+    float butt_norm_ir = filter_butterworth_lp(&butt_filter_spo2_ir, norm_ir);
+    float butt_norm_red = filter_butterworth_lp(&butt_filter_spo2_red, norm_red);
+
+    ac_sqsum_ir += butt_norm_ir * butt_norm_ir;
+    ac_sqsum_red += butt_norm_red * butt_norm_red;
     spo2_samples++;
 
     // Perform pulse detection.
-    if (measurement_detect_pulse(butt_ir)) {
+    if (measurement_detect_pulse(raw.ir, butt_ir)) {
       spo2_beats++;
     }
 
     // Compute derived measurements.
+    static float ratio = 0.0;
     if (pulse_present) {
       current_measurement.hr = (int) pulse_current_bpm;
 
       if (spo2_beats >= SPO2_UPDATE_BEATS) {
-        float ratio = qfp_fln(qfp_fsqrt(ac_sqsum_red / spo2_samples)) / qfp_fln(qfp_fsqrt(ac_sqsum_ir / spo2_samples));
+        ratio = qfp_fsqrt(ac_sqsum_red / ac_sqsum_ir);
         current_measurement.spo2 = spo2_lookup(ratio);
 
         // Reset readings.
@@ -428,6 +436,22 @@ void measurement_update()
     uart_puti((int) (butt_ir * 100));
     uart_putc(',');
     uart_puti((int) (dc_red * 100));
+    uart_putc(',');
+    uart_puti(raw.orange);
+    uart_putc(',');
+    uart_puti(raw.yellow);
+    uart_putc(',');
+    uart_puti((int) (norm_ir * 100000));
+    uart_putc(',');
+    uart_puti((int) (norm_red * 100000));
+    uart_putc(',');
+    uart_puti((int) (butt_norm_ir * 100000));
+    uart_putc(',');
+    uart_puti((int) (butt_norm_red * 100000));
+    uart_putc(',');
+    uart_puti((int) (ratio * 100));
+    uart_putc(',');
+    uart_puti(raw.ambient);
     uart_puts("\r\n");
 #endif
   }

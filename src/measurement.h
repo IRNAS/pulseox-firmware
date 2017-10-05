@@ -24,10 +24,13 @@
 // DC filter alpha.
 #define DC_FILTER_ALPHA 0.95
 
+// If the raw signal is above this threshold, ignore measurements.
+#define MEASUREMENT_THRESHOLD 3500
+
 // Number of beats required for initial pulse detection.
 #define PULSE_INITIAL_BEATS 3
 // Pulse detection threshold.
-#define PULSE_THRESHOLD 5.0
+#define PULSE_THRESHOLD 0.0
 // Pulse reset threshold.
 #define PULSE_RESET_THRESHOLD 500.0
 // Pulse timeout (in ms). If no pulse detected for this time, reset readings. This
