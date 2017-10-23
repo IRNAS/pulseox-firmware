@@ -1,6 +1,6 @@
 # Calibration method
 
-Simulation 
+Use the patient simulator that enables pulse oximetry simulation. 
 
 0. Flash the calibration firmware (calibration_firmware.bin) onto your Glia pulse oximeter as shown in [these instructions](https://github.com/IRNAS/pulseox-hardware/blob/v2.x/testing%20and%20debugging/01_firmware_flashing_instructions.md)
 
