@@ -452,6 +452,8 @@ void measurement_update()
     uart_puti((int) (ratio * 100));
     uart_putc(',');
     uart_puti(raw.ambient);
+    uart_putc(',');
+    uart_puti(raw.red);
     uart_puts("\r\n");
 #endif
   }
