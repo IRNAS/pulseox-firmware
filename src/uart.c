@@ -28,23 +28,23 @@ uint8_t uart_initialized = 0;
 void uart_init()
 {
   // Enable clocks for UART communication.
-  rcc_periph_clock_enable(RCC_USART1);
+  rcc_periph_clock_enable(RCC_USART2);
   rcc_periph_clock_enable(RCC_GPIOA);
 
-  // Setup alternate function USART1_TX for PA14.
+  // Setup alternate function USART2_TX for PA14.
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO14);
   gpio_set_af(GPIOA, GPIO_AF1, GPIO14);
 
   // Setup UART parameters.
-  usart_set_baudrate(USART1, 115200);
-  usart_set_databits(USART1, 8);
-  usart_set_stopbits(USART1, USART_CR2_STOP_1_0BIT);
-  usart_set_mode(USART1, USART_MODE_TX);
-  usart_set_parity(USART1, USART_PARITY_NONE);
-  usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
+  usart_set_baudrate(USART2, 115200);
+  usart_set_databits(USART2, 8);
+  usart_set_stopbits(USART2, USART_CR2_STOP_1_0BIT);
+  usart_set_mode(USART2, USART_MODE_TX);
+  usart_set_parity(USART2, USART_PARITY_NONE);
+  usart_set_flow_control(USART2, USART_FLOWCONTROL_NONE);
 
   // Enable UART.
-  usart_enable(USART1);
+  usart_enable(USART2);
   uart_initialized = 1;
 }
 
@@ -54,7 +54,7 @@ void uart_putc(char character)
     return;
   }
 
-  usart_send_blocking(USART1, character);
+  usart_send_blocking(USART2, character);
 }
 
 void uart_puts(char *text)
