@@ -125,12 +125,12 @@ void lcd_draw_pixel(int x, int y, uint16_t color)
   }
 
   // Compute offset within buffer.
-  uint16_t offset = x + (y / LCD_PAGE_SIZE) * LCD_WIDTH;
+  uint16_t offset = (LCD_WIDTH - 1 - x) + ( (LCD_HEIGHT - 1 - y ) / LCD_PAGE_SIZE) * LCD_WIDTH;
 
   if (color) {
-    lcd_screen_buffer[offset] |= 1 << (y % 8);
+    lcd_screen_buffer[offset] |= 1 << ((LCD_HEIGHT - 1 - y ) % 8);
   } else {
-    lcd_screen_buffer[offset] &= 0xFF ^ 1 << (y % 8);
+    lcd_screen_buffer[offset] &= 0xFF ^ 1 << ((LCD_HEIGHT - 1 - y ) % 8);
   }
 
   lcd_dirty = 1;
