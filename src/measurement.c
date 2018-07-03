@@ -33,9 +33,9 @@
 #include <string.h>
 
 #define LED_PORT GPIOA
-#define LED_PIN1 GPIO4
+#define LED_PIN1 GPIO2
 #define LED_PIN2 GPIO3
-#define LED_PIN3 GPIO2
+#define LED_PIN3 GPIO4
 
 #define DETECTOR_PORT GPIOA
 #define DETECTOR_PIN_ANALOG_IN GPIO0
@@ -60,31 +60,31 @@ led_config_t led_config[] = {
   // LED2 - IR (940nm).
   {
     .gpio = ((LED_PIN1 << 16) | (LED_PIN2 << 16) | LED_PIN3),
-    .duty_on = 5000,
+    .duty_on = 200,
     .duty_wait = 4
   },
   // LED5 - Red (660nm).
   {
     .gpio = (LED_PIN1 | (LED_PIN2 << 16) | (LED_PIN3 << 16)),
-    .duty_on = 1000,
+    .duty_on = 5000,
     .duty_wait = 4
   },
   // LED3 - Orange (610nm).
   {
     .gpio = ((LED_PIN1 << 16) | LED_PIN2 | LED_PIN3),
-    .duty_on = 1000,
+    .duty_on = 50,
     .duty_wait = 4
   },
   // LED4 - Yellow (590nm).
   {
     .gpio = (LED_PIN1 | LED_PIN2 | (LED_PIN3 << 16)),
-    .duty_on = 1000,
+    .duty_on = 50,
     .duty_wait = 4
   },
   // Ambient light LED (e.g., all LEDs off).
   {
     .gpio = ((LED_PIN1 | LED_PIN2 | LED_PIN3) << 16),
-    .duty_on = 1000,
+    .duty_on = 500,
     .duty_wait = 4
   }
 };
@@ -103,6 +103,7 @@ mean_filter_t mean_diff_ir = { .index = 0, .sum = 0.0, .count = 0 };
 mean_filter_t rolling_mean_ir = { .index = 0, .sum = 0.0, .count = 0 };
 mean_filter_t rolling_mean_pulse = { .index = 0, .sum = 0.0, .count = 0 };
 butterworth_filter_t butt_filter_ir = { .v = {0., 0., 0.} };
+butterworth_filter_t butt_filter_red = { .v = {0., 0., 0.} };
 butterworth_filter_t butt_filter_spo2_ir = { .v = {0., 0., 0.} };
 butterworth_filter_t butt_filter_spo2_red = { .v = {0., 0., 0.} };
 
@@ -365,6 +366,7 @@ void measurement_update()
 
     // Red.
     float dc_red = filter_dc(&dc_filter_red, (float) raw.red, DC_FILTER_ALPHA);
+    float butt_red = filter_butterworth_lp(&butt_filter_red, dc_red);
 
     // Normalize IR and red AC by their DC components.
     float norm_ir = dc_ir / dc_filter_ir.w;
@@ -436,6 +438,8 @@ void measurement_update()
     uart_puti((int) (butt_ir * 100));
     uart_putc(',');
     uart_puti((int) (dc_red * 100));
+    uart_putc(',');
+    uart_puti((int) (butt_red * 100));
     uart_putc(',');
     uart_puti(raw.orange);
     uart_putc(',');
