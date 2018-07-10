@@ -33,7 +33,7 @@
 #include <stdlib.h>
 
 #define DEBUG_BUTTON_PORT GPIOF
-#define DEBUG_U6 GPIO0
+#define DEBUG_U6 GPIO1
 
 #ifdef PULSEOX_DEBUG
 void debug_init()
