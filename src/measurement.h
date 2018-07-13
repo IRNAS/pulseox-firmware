@@ -44,6 +44,11 @@
 #define SPO2_WAVEFORM_MIN -20
 #define SPO2_WAVEFORM_MAX 20
 
+// Buffer size is number of samples needed
+#define RAW_BUFFER_SIZE 200
+// Number of signal periods needed + 1
+#define NUM_OF_PERIODS 8
+
 typedef struct {
   uint16_t red;
   uint16_t orange;
@@ -51,6 +56,14 @@ typedef struct {
   uint16_t ir;
   uint16_t ambient;
 } raw_measurement_t;
+
+// Buffers for AMP computation
+float butt_ir_buffer[NUM_OF_PERIODS];
+float butt_red_buffer[NUM_OF_PERIODS];
+
+// Buffers for STD computation
+float noise_ir_buffer[RAW_BUFFER_SIZE];
+float noise_red_buffer[RAW_BUFFER_SIZE];
 
 typedef struct {
   // Derived measurements.

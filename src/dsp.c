@@ -52,13 +52,24 @@ float filter_mean(mean_filter_t *filter, float x, int difference)
   }
 }
 
-float filter_butterworth_lp(butterworth_filter_t *filter, float x)
+float filter_butterworth_lp(butterworth_filter_t *filter, float x)  // 3,3 Hz, order 2
 {
   filter->v[0] = filter->v[1];
   filter->v[1] = filter->v[2];
-  filter->v[2] = (9.348688702492780056e-3f * x)
-                  + (-0.74586058058659876480f * filter->v[0])
-                  + (1.70846582577662764457f * filter->v[1]);
+  filter->v[2] = (9.348688702492780056e-3f * x) // b1
+                  + (-0.74586058058659876480f * filter->v[0]) // -a3
+                  + (1.70846582577662764457f * filter->v[1]); // -a2
 
   return (filter->v[0] + filter->v[2]) + 2 * filter->v[1];
+}
+
+float filter_butterworth_hp(butterworth_filter_t *filter, float x) // 20 Hz, order 2
+{
+  filter->v[0] = filter->v[1];
+  filter->v[1] = filter->v[2];
+  filter->v[2] = (0.39133577f * x)   // b1
+                  + (-0.19581571f * filter->v[0]) // -a3
+                  + (0.36952738f * filter->v[1]); // -a2
+
+  return (filter->v[0] + filter->v[2]) - 2 * filter->v[1];
 }

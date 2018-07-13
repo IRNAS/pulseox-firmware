@@ -55,4 +55,9 @@ float filter_mean(mean_filter_t *filter, float x, int difference);
  */
 float filter_butterworth_lp(butterworth_filter_t *filter, float x);
 
+/**
+ * Butterworth high-pass filter with cutoff at 3.3Hz.
+ */
+float filter_butterworth_hp(butterworth_filter_t *filter, float x);
+
 #endif
