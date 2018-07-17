@@ -23,6 +23,7 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <stdbool.h>
 
 /**
  * Current state of the GUI.
@@ -45,6 +46,8 @@ struct gui_state {
   // Low battery blinking.
   uint8_t low_battery_visible;
   uint32_t low_battery_toggled;
+  // Finger detect
+  bool finger_detected;
 };
 
 // GUI state.
@@ -68,56 +71,70 @@ void gui_init(uint16_t width, uint16_t height)
   state.low_battery_visible = 0;
   state.low_battery_toggled = 0;
 
+  state.finger_detected = true;
+
   gfx_fillScreen(0x00);
 }
 
 void gui_measurement_update(const measurement_t *measurement)
 {
-  // Update current heart rate and SpO2 displays.
-  if (measurement->hr != state.display_hr) {
-    gfx_setTextSize(1);
-    gfx_setTextColor(0x80, 0x00);
-    gfx_setCursor(90, 12);
-    gfx_puts("HR");
+  if (state.finger_detected) {
+      
+    // Update current heart rate and SpO2 displays.
+    if (measurement->hr != state.display_hr) {
+      gfx_setTextSize(1);
+      gfx_setTextColor(0x80, 0x00);
+      gfx_setCursor(90, 12);
+      gfx_puts("HR");
 
-    if (measurement->hr) {
-      snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->hr);
-    } else {
-      snprintf(text_buffer, sizeof(text_buffer), "--");
-    }
-
-    gfx_setTextSize(2);
-    gfx_setCursor(80, 26);
-    gfx_puts("   ");
-    gfx_setCursor(80, 26);
-    gfx_puts(text_buffer);
-    state.display_hr = measurement->hr;
-  }
-
-  if (measurement->spo2 != state.display_spo2) {
-    gfx_setTextSize(1);
-    gfx_setTextColor(0x80, 0x00);
-    gfx_setCursor(20, 0);
-    gfx_puts("SpO2%");
-
-    if (measurement->spo2) {
-      if (measurement->spo2 > 0 && measurement->spo2 <= 99) {
-        snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->spo2);
+      if (measurement->hr) {
+        snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->hr);
       } else {
-        snprintf(text_buffer, sizeof(text_buffer), "??");
+        snprintf(text_buffer, sizeof(text_buffer), "--");
       }
-    } else {
-      snprintf(text_buffer, sizeof(text_buffer), "--");
+
+      gfx_setTextSize(2);
+      gfx_setCursor(80, 26);
+      gfx_puts("   ");
+      gfx_setCursor(80, 26);
+      gfx_puts(text_buffer);
+      state.display_hr = measurement->hr;
     }
 
-    gfx_setTextSize(3);
-    gfx_setCursor(15, 14);
-    gfx_puts("  ");
-    gfx_setCursor(15, 14);
-    gfx_puts(text_buffer);
-    state.display_spo2 = measurement->spo2;
+    if (measurement->spo2 != state.display_spo2) {
+      gfx_setTextSize(1);
+      gfx_setTextColor(0x80, 0x00);
+      gfx_setCursor(20, 0);
+      gfx_puts("SpO2%");
+
+      if (measurement->spo2) {
+        if (measurement->spo2 > 0 && measurement->spo2 <= 99) {
+          snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->spo2);
+        } else {
+          snprintf(text_buffer, sizeof(text_buffer), "??");
+        }
+      } else {
+        snprintf(text_buffer, sizeof(text_buffer), "--");
+      }
+
+      gfx_setTextSize(3);
+      gfx_setCursor(15, 14);
+      gfx_puts("  ");
+      gfx_setCursor(15, 14);
+      gfx_puts(text_buffer);
+      
+      state.display_spo2 = measurement->spo2;
+    }
+  }
+  else {
+    gfx_setTextSize(1);
+    gfx_setTextColor(0x80, 0x00);
+    gfx_setCursor(20, 8);
+    gfx_puts("FINGER OUT");
   }
 
+  //state.finger_detected = measurement->finger_in;
+  
   // Update current waveform bucket.
   state.waveform_bucket += measurement->waveform_spo2;
   state.waveform_bucket_size++;

@@ -6,7 +6,7 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif(NOT CMAKE_CROSSCOMPILING)
 
 # Uncomment to build debug firmware.
-set(DEBUG TRUE)
+# set(DEBUG TRUE)
 
 # Libopencm3.
 set(LIBOPENCM3_DIR ${CMAKE_SOURCE_DIR}/libopencm3)

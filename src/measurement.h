@@ -20,6 +20,7 @@
 #define PULSEOX_MEASUREMENT_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 // DC filter alpha.
 #define DC_FILTER_ALPHA 0.95
@@ -30,7 +31,7 @@
 // Number of beats required for initial pulse detection.
 #define PULSE_INITIAL_BEATS 3
 // Pulse detection threshold.
-#define PULSE_THRESHOLD 0.0
+#define PULSE_THRESHOLD -5.0
 // Pulse reset threshold.
 #define PULSE_RESET_THRESHOLD 500.0
 // Pulse timeout (in ms). If no pulse detected for this time, reset readings. This
@@ -47,7 +48,9 @@
 // Buffer size is number of samples needed
 #define RAW_BUFFER_SIZE 200
 // Number of signal periods needed + 1
-#define NUM_OF_PERIODS 8
+#define NUM_OF_PERIODS 2
+// Peak Detector RED threshold
+#define RED_THRESHOLD -5.0
 
 typedef struct {
   uint16_t red;
@@ -73,6 +76,7 @@ typedef struct {
   float waveform_spo2;
   float waveform_spo2_min;
   float waveform_spo2_max;
+  bool finger_in;
 } measurement_t;
 
 typedef struct {

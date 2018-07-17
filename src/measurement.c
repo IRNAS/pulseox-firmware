@@ -46,11 +46,14 @@
 #define DETECTOR_TIMINGS_RISE_TIME 10
 #define DETECTOR_TIMINGS_FALL_TIME 10
 
+// Default brightness values - CHANGE IF NEEDED
+#define IR_DEFAULT 160
+#define RED_DEFAULT 250
+
 // LED brightness values
-#define IR_DEFAULT 300
-#define RED_DEFAULT 1000
-#define IR_STEP 20
-#define RED_STEP 500
+#define CHANGE_BRIGHT_DELAY 3000 // in ms
+#define SQI_IR_BORDER 0.8f
+#define SQI_RED_BORDER 0.8f
 
 void detector_power_on();
 void detector_power_off();
@@ -60,10 +63,14 @@ void led_turn_on(uint32_t led);
 void led_wait(int clocks);
 uint16_t measurement_read_wavelength(uint8_t led_index);
 raw_measurement_t measurement_read();
-void add_element_amp(float ir, float red);
-void add_element_std(float ir, float red);
-void empty_amp_buffer();
-void sqi_test_loop();
+void add_ir_amp(float ir);
+void add_red_amp(float red);
+void add_ir_std(float ir);
+void add_red_std(float red);
+void empty_amp_ir_buffer();
+void empty_amp_red_buffer();
+void sqi_ir_loop();
+void sqi_red_loop();
 
 // LED configuration defaults.
 led_config_t led_config[] = {
@@ -150,13 +157,28 @@ uint32_t measurement_delay = 0;
 measurement_t current_measurement;
 
 // SQI variables
-uint8_t cur_amp_element = 0;
-uint8_t cur_std_element = 0;
+uint8_t cur_amp_element_ir = 0;
+uint8_t cur_amp_element_red = 0;
+uint8_t cur_std_element_ir = 0;
+uint8_t cur_std_element_red = 0;
 float sqi_ir = 0.0;
 float sqi_red = 0.0;
-bool std_buf_full = false;
-bool empty_need = false;
+bool std_ir_buf_full = false;
+bool std_red_buff_full = false;
+bool empty_ir_need = false;
+bool empty_red_need = false;
+bool plus_step_ir = false;
+bool plus_step_red = true;
 uint32_t last_time = 0;
+uint16_t ir_step = 20;
+uint16_t red_step = 250;
+
+// RED peak detector variables
+uint8_t pulse_state_red = PULSE_IDLE;
+uint32_t red_current_timestamp = 0;
+uint32_t red_last_timestamp = 0;
+float red_previous_value = 0.0;
+bool red_peaks_present = false;
 
 // Measurement callback.
 measurement_update_callback_t callback_on_update = NULL;
@@ -238,8 +260,6 @@ uint16_t measurement_read_wavelength(uint8_t led_index)
   uint16_t result = detector_read();
   clock_usleep(DETECTOR_TIMINGS_FALL_TIME);
 
-  // TODO: Automatically adjust LED duty cycle.
-
   return result;
 }
 
@@ -260,7 +280,7 @@ raw_measurement_t measurement_read()
   return result;
 }
 
-int measurement_detect_pulse(uint16_t raw, float value, float red)
+int measurement_detect_pulse(uint16_t raw, float value)
 {
   if (value >= PULSE_RESET_THRESHOLD || raw >= MEASUREMENT_THRESHOLD) {
     pulse_state = PULSE_IDLE;
@@ -271,9 +291,9 @@ int measurement_detect_pulse(uint16_t raw, float value, float red)
     pulse_beats = 0;
     pulse_present = 0;
     memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
-    if (empty_need == true) {
-      empty_amp_buffer();
-      empty_need = false;
+    if (empty_ir_need == true) {
+      empty_amp_ir_buffer();
+      empty_ir_need = false;
     }
     return 0;
   }
@@ -304,7 +324,7 @@ int measurement_detect_pulse(uint16_t raw, float value, float red)
         uint32_t beat_duration = pulse_current_timestamp - pulse_last_timestamp;
         pulse_last_timestamp = pulse_current_timestamp;
         
-        add_element_amp(value, red);  // add data to AMP buffer
+        add_ir_amp(value);  // add data to AMP buffer
 
         // Compute BPM.
         float raw_bpm = 60000.0 / (float) beat_duration;
@@ -337,103 +357,214 @@ int measurement_detect_pulse(uint16_t raw, float value, float red)
   return 0;
 }
 
-void add_element_amp(float ir, float red) {
-  butt_ir_buffer[cur_amp_element] = ir;
-  butt_red_buffer[cur_amp_element] = red;
-  cur_amp_element++;
-  if (cur_amp_element == NUM_OF_PERIODS) {
-    sqi_test_loop();
-    //std_buf_full = false;
-    cur_amp_element = 0;
+int red_detect_mins(uint16_t raw, float value) {
+  if (value >= PULSE_RESET_THRESHOLD || raw >= MEASUREMENT_THRESHOLD) {
+    pulse_state_red = PULSE_IDLE;
+    red_current_timestamp = 0;
+    red_last_timestamp = 0;
+    red_previous_value = 0.0;
+    red_peaks_present = false;
+    if (empty_red_need == true) {
+      empty_amp_red_buffer();
+      empty_red_need = false;
+    }
+    return 0;
   }
+  
+  switch(pulse_state_red) {
+    case PULSE_IDLE: {
+      // Idle state: we wait for the value to cross the threshold.
+      if (value <= RED_THRESHOLD) {
+        pulse_state_red = PULSE_FALLING;
+      }
+      break;
+    }
+    case PULSE_FALLING: {
+      if (value < red_previous_value) {
+        // Still falling.
+      }
+      else {
+          // Reached the bottom.
+        add_red_amp(value);  // add data to AMP buffer
+        red_peaks_present = true;
+
+        pulse_state_red = PULSE_RISING;
+        return 1;
+      }
+      break;
+    }
+    case PULSE_RISING: {
+      // Move into idle state when under the threshold.
+      if (value > RED_THRESHOLD) {
+        pulse_state_red = PULSE_IDLE;
+      }
+      break;
+    }
+  }
+  red_previous_value = value;
+  return 0;
 }
 
-void add_element_std(float ir, float red) {
-	noise_ir_buffer[cur_std_element] = ir;
-  noise_red_buffer[cur_std_element] = red;
-	cur_std_element++;
-	if (cur_std_element == RAW_BUFFER_SIZE) {
-    std_buf_full = true;
-		cur_std_element = 0;
+void add_ir_std(float ir) {
+	noise_ir_buffer[cur_std_element_ir] = ir;
+	cur_std_element_ir++;
+	if (cur_std_element_ir == RAW_BUFFER_SIZE) {
+    std_ir_buf_full = true;
+		cur_std_element_ir = 0;
 	}
 }
 
-void empty_amp_buffer() {
+void add_red_std(float red) {
+  noise_red_buffer[cur_std_element_red] = red;
+	cur_std_element_red++;
+	if (cur_std_element_red == RAW_BUFFER_SIZE) {
+    std_red_buff_full = true;
+		cur_std_element_red = 0;
+	}
+}
+
+void add_ir_amp(float ir) {
+  butt_ir_buffer[cur_amp_element_ir] = ir;
+  cur_amp_element_ir++;
+  if (cur_amp_element_ir == NUM_OF_PERIODS) {
+    sqi_ir_loop();
+    cur_amp_element_ir = 0;
+  }
+}
+
+void add_red_amp(float red) {
+  butt_red_buffer[cur_amp_element_red] = red;
+  cur_amp_element_red++;
+  if (cur_amp_element_red == NUM_OF_PERIODS) {
+    sqi_red_loop();
+    cur_amp_element_red = 0;
+  }
+}
+
+void empty_amp_ir_buffer() {
   for (int i = 0; i < NUM_OF_PERIODS; i++) {
     butt_ir_buffer[i] = 0.0;
-    butt_red_buffer[i] = 0.0;
   }
   sqi_ir = 0.0;
+}
+
+void empty_amp_red_buffer() {
+  for (int i = 0; i < NUM_OF_PERIODS; i++) {
+    butt_red_buffer[i] = 0.0;
+  }
   sqi_red = 0.0;
 }
 
-void change_brightness() {
-  if (led_config[0].duty_on < 40) {
-    led_config[0].duty_on = IR_DEFAULT;  // IR
+void change_brightness_ir() {
+  // IR
+  if (led_config[0].duty_on < 21) {  
+    plus_step_ir = true;
+  }
+  else if (led_config[0].duty_on > 350) {
+    plus_step_ir = false;
+  }
+
+  if (plus_step_ir) {
+    led_config[0].duty_on += ir_step;
   }
   else {
-    led_config[0].duty_on -= IR_STEP;
+    led_config[0].duty_on -= ir_step;
   }
-  /*
-  if (led_config[1].duty_on > 5000)  {
-    led_config[1].duty_on = RED_DEFAULT; // Red
-  }
-  else {
-    led_config[1].duty_on += RED_STEP;
-  }
-  */
 }
 
-void sqi_test_loop() {
+void change_brightness_red() {
+  // RED
+  if (led_config[1].duty_on > 5000)  {
+    plus_step_red = false;
+  }
+  else if (led_config[1].duty_on < 1){
+    plus_step_red = true;
+  }
+
+  if (plus_step_red) {
+    led_config[1].duty_on += red_step;
+  }
+  else {
+    led_config[1].duty_on -= red_step;
+  }
+}
+
+void sqi_ir_loop() {
   // calcuate AMP - signal amplitude
   float mean_ir = 0.0;
-  float mean_red = 0.0;
   // low pass signal -> peak detection -> preberem lokalne minimume ->  mean -> abs -> * 2
   for (int i = 0; i < NUM_OF_PERIODS; i++) {
     mean_ir += butt_ir_buffer[i];
-    mean_red += butt_red_buffer[i];
   }
   mean_ir = mean_ir / NUM_OF_PERIODS;
-  mean_red = mean_red / NUM_OF_PERIODS;
   if (mean_ir < 0.0) {
     mean_ir = -mean_ir;
   }
-  if (mean_red < 0.0) {
-    mean_red = -mean_red;
-  }
   float amp_ir = 2 * mean_ir;
-  float amp_red = 2 * mean_red;
 
   // calculate STD - signal standard deviation
   float mean_std_ir = 0.0;
-  float mean_std_red = 0.0;
   for (int i = 0; i < RAW_BUFFER_SIZE; i++) {
     mean_std_ir += noise_ir_buffer[i];
-    mean_std_red += noise_red_buffer[i];
   }
   mean_std_ir = mean_std_ir / RAW_BUFFER_SIZE;
-  mean_std_red = mean_std_red / RAW_BUFFER_SIZE;
   float var_ir = 0.0;
-  float var_red = 0.0;
   for (int j = 0; j < RAW_BUFFER_SIZE; j++) {
     var_ir += ((noise_ir_buffer[j] - mean_std_ir) * (noise_ir_buffer[j] - mean_std_ir));
-    var_red += ((noise_red_buffer[j]- mean_std_red) * (noise_red_buffer[j] - mean_std_red));
   }
   var_ir = var_ir / RAW_BUFFER_SIZE;
-  var_red = var_red / RAW_BUFFER_SIZE;
   float std_ir = qfp_fsqrt(var_ir);
-  float std_red = qfp_fsqrt(var_red);
 
   // calculate SQI
   sqi_ir = 1 - (std_ir / amp_ir);
-  sqi_red = 1 - (std_red / amp_red);
-
-  std_buf_full = false;
-  empty_need = true;
-
-  if (sqi_ir < 0.8f) {
-    change_brightness();
+  if (sqi_ir < 0.0) {
+    sqi_ir = 0.0;
   }
+  
+  if (sqi_ir < SQI_IR_BORDER) {
+    change_brightness_ir();
+  }
+  std_ir_buf_full = false;
+  empty_ir_need = true;
+}
+
+void sqi_red_loop() {
+   // calcuate AMP - signal amplitude
+  float mean_red = 0.0;
+  // low pass signal -> peak detection -> preberem lokalne minimume ->  mean -> abs -> * 2
+  for (int i = 0; i < NUM_OF_PERIODS; i++) {
+    mean_red += butt_red_buffer[i];
+  }
+  mean_red = mean_red / NUM_OF_PERIODS;
+  if (mean_red < 0.0) {
+    mean_red = -mean_red;
+  }
+  float amp_red = 2 * mean_red;
+
+  // calculate STD - signal standard deviation
+  float mean_std_red = 0.0;
+  for (int i = 0; i < RAW_BUFFER_SIZE; i++) {
+    mean_std_red += noise_red_buffer[i];
+  }
+  mean_std_red = mean_std_red / RAW_BUFFER_SIZE;
+  float var_red = 0.0;
+  for (int j = 0; j < RAW_BUFFER_SIZE; j++) {
+    var_red += ((noise_red_buffer[j]- mean_std_red) * (noise_red_buffer[j] - mean_std_red));
+  }
+  var_red = var_red / RAW_BUFFER_SIZE;
+  float std_red = qfp_fsqrt(var_red);
+
+  // calculate SQI
+  sqi_red = 1 - (std_red / amp_red);
+  if (sqi_red < 0.0) {
+    sqi_red = 0.0;
+  }
+  
+  if (sqi_red < SQI_RED_BORDER) {
+    change_brightness_red();
+  }
+  std_red_buff_full = false;
+  empty_red_need = true;
 }
 
 #ifdef PULSEOX_BOARD_DIAGNOSTIC
@@ -485,6 +616,14 @@ void measurement_update()
   if (now - last_measurement > measurement_delay) {
     raw_measurement_t raw = measurement_read();
 
+    //Finger detect
+    if (raw.red < MEASUREMENT_THRESHOLD) {
+      current_measurement.finger_in = true;
+    }
+    else {
+      current_measurement.finger_in = false;
+    }
+
     // IR.
     float dc_ir = filter_dc(&dc_filter_ir, (float) raw.ir, DC_FILTER_ALPHA);
     float mean_ir = filter_mean(&mean_diff_ir, dc_ir, 1);
@@ -497,8 +636,12 @@ void measurement_update()
     float butt_red = filter_butterworth_lp(&butt_filter_red, dc_red);
     float noise_red = filter_butterworth_hp(&butt_filter_red_h, dc_red);
 
-    if (std_buf_full == false) {
-      add_element_std(noise_ir, noise_red); // add data to STD buffer
+    // add data to STD buffer
+    if (std_ir_buf_full == false) {
+      add_ir_std(noise_ir);
+    }
+    if (std_red_buff_full == false) {
+      add_red_std(noise_red);
     }
     
     // Normalize IR and red AC by their DC components.
@@ -512,8 +655,11 @@ void measurement_update()
     ac_sqsum_red += butt_norm_red * butt_norm_red;
     spo2_samples++;
 
+    // Detect peaks in red signal
+    red_detect_mins(raw.red, butt_red);
+
     // Perform pulse detection.
-    if (measurement_detect_pulse(raw.ir, butt_ir, butt_red)) {
+    if (measurement_detect_pulse(raw.ir, butt_ir)) {
       spo2_beats++;
     }
 
@@ -532,7 +678,6 @@ void measurement_update()
         spo2_samples = 0;
         spo2_beats = 0;
       }
-      //sqi_test_loop();
     } 
     else {
       // No pulse present, SpO2 should be ignored.
@@ -626,10 +771,18 @@ void measurement_update()
     last_report = now;
     sample_count = 0;
   }
-
-  if ((pulse_present != 1) && ((now - last_time) > 2500)) {
-    change_brightness();
-    last_time = now;
+  
+  // Start loop
+  if (current_measurement.finger_in == true) {
+    if (((now - last_time) > CHANGE_BRIGHT_DELAY)) {
+      if (pulse_present != 1) {
+        change_brightness_ir();
+      }
+      if (red_peaks_present != true) {
+        change_brightness_red();
+      }
+      last_time = now;
+    }
   }
 }
 #endif
