@@ -26,12 +26,12 @@
 #define DC_FILTER_ALPHA 0.95
 
 // If the raw signal is above this threshold, ignore measurements.
-#define MEASUREMENT_THRESHOLD 3500
+#define MEASUREMENT_THRESHOLD 2600
 
 // Number of beats required for initial pulse detection.
 #define PULSE_INITIAL_BEATS 3
 // Pulse detection threshold.
-#define PULSE_THRESHOLD -5.0
+#define PULSE_THRESHOLD -20.0
 // Pulse reset threshold.
 #define PULSE_RESET_THRESHOLD 500.0
 // Pulse timeout (in ms). If no pulse detected for this time, reset readings. This
@@ -50,7 +50,7 @@
 // Number of signal periods needed + 1
 #define NUM_OF_PERIODS 2
 // Peak Detector RED threshold
-#define RED_THRESHOLD -5.0
+#define RED_THRESHOLD -15.0
 
 typedef struct {
   uint16_t red;
@@ -76,7 +76,8 @@ typedef struct {
   float waveform_spo2;
   float waveform_spo2_min;
   float waveform_spo2_max;
-  bool finger_in;
+  uint8_t finger_in;
+  //uint8_t calibrating;
 } measurement_t;
 
 typedef struct {
