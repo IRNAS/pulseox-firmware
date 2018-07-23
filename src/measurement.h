@@ -20,18 +20,30 @@
 #define PULSEOX_MEASUREMENT_H
 
 #include <stdint.h>
-#include <stdbool.h>
 
+// LED default brightness values - CHANGE IF NEEDED
+#define IR_DEFAULT 160           // IR value for initialization
+#define RED_DEFAULT 250          // RED value for initialization
+
+#define CHANGE_BRIGHT_DELAY 3000  // setup loop delay in ms
+#define SQI_IR_BORDER 0.8f        // IR test loop border value
+#define SQI_RED_BORDER 0.8f       // RED test loop border value
+#define PULSE_THRESHOLD -5.0      // Pulse detection threshold
+#define RED_THRESHOLD -5.0        // Peak Detector RED threshold
+#define IR_STEP 20                // IR brightness change step
+#define RED_STEP 250              // RED brightness change step
+
+// Buffer size is number of samples needed
+#define RAW_BUFFER_SIZE 200
+// Number of signal periods needed + 1
+#define NUM_OF_PERIODS 2
+// If the raw signal is above this threshold, ignore measurements.
+#define MEASUREMENT_THRESHOLD 2600
 // DC filter alpha.
 #define DC_FILTER_ALPHA 0.95
 
-// If the raw signal is above this threshold, ignore measurements.
-#define MEASUREMENT_THRESHOLD 2600
-
 // Number of beats required for initial pulse detection.
 #define PULSE_INITIAL_BEATS 3
-// Pulse detection threshold.
-#define PULSE_THRESHOLD -5.0
 // Pulse reset threshold.
 #define PULSE_RESET_THRESHOLD 500.0
 // Pulse timeout (in ms). If no pulse detected for this time, reset readings. This
@@ -44,13 +56,6 @@
 // visualization not any measurements.
 #define SPO2_WAVEFORM_MIN -20
 #define SPO2_WAVEFORM_MAX 20
-
-// Buffer size is number of samples needed
-#define RAW_BUFFER_SIZE 200
-// Number of signal periods needed + 1
-#define NUM_OF_PERIODS 2
-// Peak Detector RED threshold
-#define RED_THRESHOLD -5.0
 
 typedef struct {
   uint16_t red;

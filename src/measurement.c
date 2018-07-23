@@ -39,24 +39,11 @@
 
 #define DETECTOR_PORT GPIOA
 #define DETECTOR_PIN_ANALOG_IN GPIO0
-// XXX: Due to a recent change in the PCB, the detector is always powered.
-// #define DETECTOR_PIN_VDD GPIO1
 
 // Timings in microseconds.
 #define DETECTOR_TIMINGS_RISE_TIME 10
 #define DETECTOR_TIMINGS_FALL_TIME 10
 
-// Default brightness values - CHANGE IF NEEDED
-#define IR_DEFAULT 160
-#define RED_DEFAULT 250
-
-// LED brightness values
-#define CHANGE_BRIGHT_DELAY 3000 // in ms
-#define SQI_IR_BORDER 0.8f
-#define SQI_RED_BORDER 0.8f
-
-void detector_power_on();
-void detector_power_off();
 uint16_t detector_read();
 void led_turn_off();
 void led_turn_on(uint32_t led);
@@ -126,7 +113,7 @@ enum {
   PULSE_FALLING = 1,
   PULSE_RISING = 2,
 };
-
+// IR pulse variables
 uint8_t pulse_state = PULSE_IDLE;
 uint32_t pulse_current_timestamp = 0;
 uint32_t pulse_last_timestamp = 0;
@@ -134,6 +121,13 @@ uint8_t pulse_beats = 0;
 uint8_t pulse_present = 0;
 float pulse_previous_value = 0.0;
 float pulse_current_bpm = 0.0;
+
+// RED peak detector variables
+uint8_t pulse_state_red = PULSE_IDLE;
+uint32_t red_current_timestamp = 0;
+uint32_t red_last_timestamp = 0;
+float red_previous_value = 0.0;
+bool red_peaks_present = false;
 
 // Red/IR ratio calculation.
 float ac_sqsum_ir = 0.0;
@@ -164,15 +158,6 @@ bool empty_red_need = false;
 bool plus_step_ir = false;
 bool plus_step_red = true;
 uint32_t last_time = 0;
-uint16_t ir_step = 20;
-uint16_t red_step = 250;
-
-// RED peak detector variables
-uint8_t pulse_state_red = PULSE_IDLE;
-uint32_t red_current_timestamp = 0;
-uint32_t red_last_timestamp = 0;
-float red_previous_value = 0.0;
-bool red_peaks_present = false;
 
 // Measurement callback.
 measurement_update_callback_t callback_on_update = NULL;
@@ -193,25 +178,8 @@ void measurement_init(measurement_update_callback_t on_update)
 
   // Setup detector GPIOs.
   gpio_mode_setup(DETECTOR_PORT, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, DETECTOR_PIN_ANALOG_IN);
-  // XXX: Due to a recent change in the PCB, the detector is always powered.
-  // gpio_mode_setup(DETECTOR_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, DETECTOR_PIN_VDD);
-  // gpio_clear(DETECTOR_PORT, DETECTOR_PIN_VDD);
 
-  detector_power_on();
-}
-
-void detector_power_on()
-{
-  // XXX: Due to a recent change in the PCB, the detector is always powered.
-  // gpio_set(DETECTOR_PORT, DETECTOR_PIN_VDD);
   clock_usleep(DETECTOR_TIMINGS_RISE_TIME);
-}
-
-void detector_power_off()
-{
-  // XXX: Due to a recent change in the PCB, the detector is always powered.
-  // gpio_clear(DETECTOR_PORT, DETECTOR_PIN_VDD);
-  clock_usleep(DETECTOR_TIMINGS_FALL_TIME);
 }
 
 uint16_t detector_read()
@@ -389,17 +357,15 @@ int red_detect_mins(uint16_t raw, float value) {
       if (value < red_previous_value) {
         // Still falling.
       }
-      else {
-          // Reached the bottom.
-        // add data to AMP buffer
-        butt_red_buffer[cur_amp_element_red] = value;
+      else { 
+        // Reached the bottom.
+        butt_red_buffer[cur_amp_element_red] = value; // add data to AMP buffer
         cur_amp_element_red++;
         if (cur_amp_element_red == NUM_OF_PERIODS) {
           sqi_red_loop();
           cur_amp_element_red = 0;
         }
         red_peaks_present = true;
-
         pulse_state_red = PULSE_RISING;
         return 1;
       }
@@ -419,7 +385,6 @@ int red_detect_mins(uint16_t raw, float value) {
   
 void change_brightness_ir() {
   //current_measurement.calibrating = 1;
-  // IR
   if (led_config[0].duty_on < 21) {  
     plus_step_ir = true;
   }
@@ -428,16 +393,15 @@ void change_brightness_ir() {
   }
 
   if (plus_step_ir) {
-    led_config[0].duty_on += ir_step;
+    led_config[0].duty_on += IR_STEP;
   }
   else {
-    led_config[0].duty_on -= ir_step;
+    led_config[0].duty_on -= IR_STEP;
   }
 }
 
 void change_brightness_red() {
   //current_measurement.calibrating = 1;
-  // RED
   if (led_config[1].duty_on > 5000)  {
     plus_step_red = false;
   }
@@ -446,17 +410,16 @@ void change_brightness_red() {
   }
 
   if (plus_step_red) {
-    led_config[1].duty_on += red_step;
+    led_config[1].duty_on += RED_STEP;
   }
   else {
-    led_config[1].duty_on -= red_step;
+    led_config[1].duty_on -= RED_STEP;
   }
 }
 
 void sqi_ir_loop() {
   // calcuate AMP - signal amplitude
   float mean_ir = 0.0;
-  // low pass signal -> peak detection -> preberem lokalne minimume ->  mean -> abs -> * 2
   for (int i = 0; i < NUM_OF_PERIODS; i++) {
     mean_ir += butt_ir_buffer[i];
   }
@@ -496,7 +459,6 @@ void sqi_ir_loop() {
 void sqi_red_loop() {
    // calcuate AMP - signal amplitude
   float mean_red = 0.0;
-  // low pass signal -> peak detection -> preberem lokalne minimume ->  mean -> abs -> * 2
   for (int i = 0; i < NUM_OF_PERIODS; i++) {
     mean_red += butt_red_buffer[i];
   }
@@ -597,15 +559,14 @@ void measurement_update()
     float mean_ir = filter_mean(&mean_diff_ir, dc_ir, 1);
     mean_ir = filter_mean(&rolling_mean_ir, mean_ir, 0);
     float butt_ir = filter_butterworth_lp(&butt_filter_ir, dc_ir);
-    float noise_ir = filter_butterworth_hp(&butt_filter_ir_h, dc_ir);
 
     // Red.
     float dc_red = filter_dc(&dc_filter_red, (float) raw.red, DC_FILTER_ALPHA);
     float butt_red = filter_butterworth_lp(&butt_filter_red, dc_red);
-    float noise_red = filter_butterworth_hp(&butt_filter_red_h, dc_red);
 
     // add IR data to STD buffer
     if (std_ir_buf_full == false) {
+      float noise_ir = filter_butterworth_hp(&butt_filter_ir_h, dc_ir);
       noise_ir_buffer[cur_std_element_ir] = noise_ir;
       cur_std_element_ir++;
       if (cur_std_element_ir == RAW_BUFFER_SIZE) {
@@ -615,6 +576,7 @@ void measurement_update()
     }
     // add RED data to STD buffer
     if (std_red_buff_full == false) {
+      float noise_red = filter_butterworth_hp(&butt_filter_red_h, dc_red);
       noise_red_buffer[cur_std_element_red] = noise_red;
       cur_std_element_red++;
       if (cur_std_element_red == RAW_BUFFER_SIZE) {
@@ -665,7 +627,6 @@ void measurement_update()
     }
 
     // Provide data for the waveform.
-    // TODO: Determine minimum and maximum based on some last samples?
     current_measurement.waveform_spo2_min = SPO2_WAVEFORM_MIN;
     current_measurement.waveform_spo2_max = SPO2_WAVEFORM_MAX;
     current_measurement.waveform_spo2 = mean_ir;
@@ -753,7 +714,7 @@ void measurement_update()
     sample_count = 0;
   }
   
-  // Start loop
+  // Setup loop
   if (current_measurement.finger_in == 1) {
     if (((now - last_time) > CHANGE_BRIGHT_DELAY)) {
       if (pulse_present != 1) {
