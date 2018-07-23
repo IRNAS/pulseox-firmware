@@ -14,10 +14,6 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/arm-none-eabi.cmake ..
 make
 ```
 
-Default LED brightness values can be adjusted: 
-
-in file measurement.h change values of IR_DEFAULT and RED_DEFAULT
-
 ---
 
 #### License
