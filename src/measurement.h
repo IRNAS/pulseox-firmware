@@ -31,7 +31,7 @@
 // Number of beats required for initial pulse detection.
 #define PULSE_INITIAL_BEATS 3
 // Pulse detection threshold.
-#define PULSE_THRESHOLD -20.0
+#define PULSE_THRESHOLD -5.0
 // Pulse reset threshold.
 #define PULSE_RESET_THRESHOLD 500.0
 // Pulse timeout (in ms). If no pulse detected for this time, reset readings. This
@@ -50,7 +50,7 @@
 // Number of signal periods needed + 1
 #define NUM_OF_PERIODS 2
 // Peak Detector RED threshold
-#define RED_THRESHOLD -15.0
+#define RED_THRESHOLD -5.0
 
 typedef struct {
   uint16_t red;
