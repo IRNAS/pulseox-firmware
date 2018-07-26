@@ -24,7 +24,7 @@
 #ifdef __cplusplus
   extern "C" {
 #endif
-
+/*
 extern          float qfp_fadd(float x,float y);
 extern          float qfp_fsub(float x,float y);
 extern          float qfp_fmul(float x,float y);
@@ -46,6 +46,7 @@ extern          float qfp_fatan2(float y,float x);
 extern          float qfp_fexp(float x);
 extern          float qfp_fln(float x);
 extern          float qfp_fsqrt(float x);
+*/
 extern          float qfp_fsqrt_fast(float x);
 
 #ifdef __cplusplus

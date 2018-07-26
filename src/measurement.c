@@ -156,7 +156,7 @@ bool std_red_buff_full = false;
 bool empty_ir_need = false;
 bool empty_red_need = false;
 bool plus_step_ir = false;
-bool plus_step_red = true;
+bool minus_step_red = false;
 uint32_t last_time = 0;
 
 // Measurement callback.
@@ -328,7 +328,7 @@ int measurement_detect_pulse(uint16_t raw, float value)
   return 0;
 }
 
-int red_detect_mins(uint16_t raw, float value) {
+void red_detect_mins(uint16_t raw, float value) {
   if (value >= PULSE_RESET_THRESHOLD || raw >= MEASUREMENT_THRESHOLD) {
     pulse_state_red = PULSE_IDLE;
     red_current_timestamp = 0;
@@ -342,7 +342,6 @@ int red_detect_mins(uint16_t raw, float value) {
       sqi_red = 0.0;
       empty_red_need = false;
     }
-    return 0;
   }
   
   switch(pulse_state_red) {
@@ -367,7 +366,6 @@ int red_detect_mins(uint16_t raw, float value) {
         }
         red_peaks_present = true;
         pulse_state_red = PULSE_RISING;
-        return 1;
       }
       break;
     }
@@ -380,15 +378,13 @@ int red_detect_mins(uint16_t raw, float value) {
     }
   }
   red_previous_value = value;
-  return 0;
 }
   
 void change_brightness_ir() {
-  //current_measurement.calibrating = 1;
-  if (led_config[0].duty_on < 21) {  
+  if (led_config[0].duty_on < IR_MIN + 1) {  
     plus_step_ir = true;
   }
-  else if (led_config[0].duty_on > 350) {
+  else if (led_config[0].duty_on > IR_MAX - 1) {
     plus_step_ir = false;
   }
 
@@ -401,33 +397,32 @@ void change_brightness_ir() {
 }
 
 void change_brightness_red() {
-  //current_measurement.calibrating = 1;
-  if (led_config[1].duty_on > 5000)  {
-    plus_step_red = false;
+  if (led_config[1].duty_on > RED_MAX - 1)  {
+    minus_step_red = true;
   }
-  else if (led_config[1].duty_on < 1){
-    plus_step_red = true;
+  else if (led_config[1].duty_on < RED_MIN + 1){
+    minus_step_red = false;
   }
 
-  if (plus_step_red) {
-    led_config[1].duty_on += RED_STEP;
+  if (minus_step_red) {
+    led_config[1].duty_on -= RED_STEP;
   }
   else {
-    led_config[1].duty_on -= RED_STEP;
+    led_config[1].duty_on += RED_STEP;
   }
 }
 
 void sqi_ir_loop() {
   // calcuate AMP - signal amplitude
-  float mean_ir = 0.0;
+  float amp_ir = 0.0;
   for (int i = 0; i < NUM_OF_PERIODS; i++) {
-    mean_ir += butt_ir_buffer[i];
+    amp_ir += butt_ir_buffer[i];
   }
-  mean_ir = mean_ir / NUM_OF_PERIODS;
-  if (mean_ir < 0.0) {
-    mean_ir = -mean_ir;
+  amp_ir = amp_ir / NUM_OF_PERIODS; // mean
+  if (amp_ir < 0.0) { 
+    amp_ir = -amp_ir; //abs
   }
-  float amp_ir = 2 * mean_ir;
+  amp_ir = 2 * amp_ir;
 
   // calculate STD - signal standard deviation
   float mean_std_ir = 0.0;
@@ -435,12 +430,12 @@ void sqi_ir_loop() {
     mean_std_ir += noise_ir_buffer[i];
   }
   mean_std_ir = mean_std_ir / RAW_BUFFER_SIZE;
-  float var_ir = 0.0;
-  for (int j = 0; j < RAW_BUFFER_SIZE; j++) {
-    var_ir += ((noise_ir_buffer[j] - mean_std_ir) * (noise_ir_buffer[j] - mean_std_ir));
+  float std_ir = 0.0;
+  for (int i = 0; i < RAW_BUFFER_SIZE; i++) {
+    std_ir += ((noise_ir_buffer[i] - mean_std_ir) * (noise_ir_buffer[i] - mean_std_ir));
   }
-  var_ir = var_ir / RAW_BUFFER_SIZE;
-  float std_ir = qfp_fsqrt(var_ir);
+  std_ir = std_ir / RAW_BUFFER_SIZE;  // var
+  std_ir = qfp_fsqrt_fast(std_ir);
 
   // calculate SQI
   sqi_ir = 1 - (std_ir / amp_ir);
@@ -451,22 +446,21 @@ void sqi_ir_loop() {
   if (sqi_ir < SQI_IR_BORDER) {
     change_brightness_ir();
   }
-  //current_measurement.calibrating = 0;
   std_ir_buf_full = false;
   empty_ir_need = true;
 }
 
 void sqi_red_loop() {
    // calcuate AMP - signal amplitude
-  float mean_red = 0.0;
+  float amp_red = 0.0;
   for (int i = 0; i < NUM_OF_PERIODS; i++) {
-    mean_red += butt_red_buffer[i];
+    amp_red += butt_red_buffer[i];
   }
-  mean_red = mean_red / NUM_OF_PERIODS;
-  if (mean_red < 0.0) {
-    mean_red = -mean_red;
+  amp_red = amp_red / NUM_OF_PERIODS; // mean
+  if (amp_red < 0.0) {
+    amp_red = -amp_red; // abs
   }
-  float amp_red = 2 * mean_red;
+  amp_red = 2 * amp_red;
 
   // calculate STD - signal standard deviation
   float mean_std_red = 0.0;
@@ -474,12 +468,12 @@ void sqi_red_loop() {
     mean_std_red += noise_red_buffer[i];
   }
   mean_std_red = mean_std_red / RAW_BUFFER_SIZE;
-  float var_red = 0.0;
-  for (int j = 0; j < RAW_BUFFER_SIZE; j++) {
-    var_red += ((noise_red_buffer[j]- mean_std_red) * (noise_red_buffer[j] - mean_std_red));
+  float std_red = 0.0;
+  for (int i = 0; i < RAW_BUFFER_SIZE; i++) {
+    std_red += ((noise_red_buffer[i]- mean_std_red) * (noise_red_buffer[i] - mean_std_red));
   }
-  var_red = var_red / RAW_BUFFER_SIZE;
-  float std_red = qfp_fsqrt(var_red);
+  std_red = std_red / RAW_BUFFER_SIZE;  // var
+  std_red = qfp_fsqrt_fast(std_red);
 
   // calculate SQI
   sqi_red = 1 - (std_red / amp_red);
@@ -490,9 +484,9 @@ void sqi_red_loop() {
   if (sqi_red < SQI_RED_BORDER) {
     change_brightness_red();
   }
-  //current_measurement.calibrating = 0;
   std_red_buff_full = false;
   empty_red_need = true;
+
 }
 
 #ifdef PULSEOX_BOARD_DIAGNOSTIC
@@ -547,11 +541,17 @@ void measurement_update()
     //Finger detect
     if (raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
-      //current_measurement.calibrating = 1;
+      // Check status of brightness calibration
+      if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) {
+        current_measurement.is_calibrating = 0;
+      }
+      else {
+        current_measurement.is_calibrating = 1;
+      }
     }
     else {
       current_measurement.finger_in = 0;
-      //current_measurement.calibrating = 0;
+      current_measurement.is_calibrating = 0;
     }
 
     // IR.
@@ -610,7 +610,7 @@ void measurement_update()
       current_measurement.hr = (int) pulse_current_bpm;
 
       if (spo2_beats >= SPO2_UPDATE_BEATS) {
-        ratio = qfp_fsqrt(ac_sqsum_red / ac_sqsum_ir);
+        ratio = qfp_fsqrt_fast(ac_sqsum_red / ac_sqsum_ir);
         current_measurement.spo2 = spo2_lookup(ratio);
 
         // Reset readings.
@@ -658,14 +658,14 @@ void measurement_update()
     //uart_putc(',');
     uart_puti((int) (butt_ir * 100));
     uart_putc(',');
-    uart_puti((int) (noise_ir * 100));
-    uart_putc(',');
+    //uart_puti((int) (noise_ir * 100));
+    //uart_putc(',');
     uart_puti((int) (dc_red * 100));
     uart_putc(',');
     uart_puti((int) (butt_red * 100));
     uart_putc(',');
-    uart_puti((int) (noise_red * 100));
-    uart_putc(',');
+    //uart_puti((int) (noise_red * 100));
+    //uart_putc(',');
     /*
     uart_puti(raw.orange);
     uart_putc(',');
@@ -693,8 +693,10 @@ void measurement_update()
     uart_puti((int) (sqi_ir * 100));
     uart_putc(',');
     uart_puti((int) (sqi_red * 100));
+    //uart_puts(',');
+    //uart_puti((int) (pulse_present));
     //uart_putc(',');
-    //uart_puti((int) current_measurement.finger_in);
+    //uart_puti((int) (red_peaks_present));
     uart_puts("\r\n");
     
 #endif

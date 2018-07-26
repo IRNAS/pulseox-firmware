@@ -24,6 +24,10 @@
 // LED default brightness values - CHANGE IF NEEDED
 #define IR_DEFAULT 160           // IR value for initialization
 #define RED_DEFAULT 250          // RED value for initialization
+#define IR_MAX 350               // Maximum IR brightness value
+#define RED_MAX 5000             // Maximum RED brightness value
+#define IR_MIN 20               // Minimum IR brightness value
+#define RED_MIN 250             // Minimum RED brightness value 
 
 #define CHANGE_BRIGHT_DELAY 3000  // setup loop delay in ms
 #define SQI_IR_BORDER 0.8f        // IR test loop border value
@@ -82,7 +86,7 @@ typedef struct {
   float waveform_spo2_min;
   float waveform_spo2_max;
   uint8_t finger_in;
-  //uint8_t calibrating;
+  uint8_t is_calibrating;
 } measurement_t;
 
 typedef struct {
@@ -104,5 +108,6 @@ void measurement_init(measurement_update_callback_t on_update);
  * Update measurement buffer.
  */
 void measurement_update();
+
 
 #endif

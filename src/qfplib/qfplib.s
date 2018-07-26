@@ -16,7 +16,7 @@
 @ write to the Free Software Foundation, Inc., 51 Franklin Street,
 @ Fifth Floor, Boston, MA  02110-1301, USA.
 
-@.equ include_faster,0        @ include fast divide and square root?
+@.equ include_faster,1        @ include fast divide and square root?
 @.equ include_conversions,1   @ include float <-> fixed point conversion functions?
 @.equ include_scientific,1    @ include trignometic, exponential etc. functions?
 
@@ -25,11 +25,11 @@
 .endif
 
 .ifndef include_conversions
-.equ include_conversions,1
+.equ include_conversions,0
 .endif
 
 .ifndef include_scientific
-.equ include_scientific,1
+.equ include_scientific,0
 .endif
 
 .if include_scientific
