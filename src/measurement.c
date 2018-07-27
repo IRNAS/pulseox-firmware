@@ -569,6 +569,7 @@ void measurement_update()
       current_measurement.finger_in = 0;
       current_measurement.is_calibrating = 0;
       first_run = 1;
+      current_measurement.time = 0;
     }
 
     // IR.

@@ -155,19 +155,20 @@ void gui_measurement_update(const measurement_t *measurement)
         
         state.red_brightness = measurement->red_brightness;
       }
+
+      // Display time needed for calibration
+      if (measurement->time) {
+        snprintf(text_buffer, sizeof(text_buffer)+ 16, "Time: %d s", (measurement->time / 1000));
+      }
+      else {
+        snprintf(text_buffer, sizeof(text_buffer), "               ");
+      }
+      gfx_setTextSize(1);
+      gfx_setCursor(5, 30);
+      gfx_puts("    ");
+      gfx_setCursor(5, 30);
+      gfx_puts(text_buffer);
     }
-    // Display time needed for calibration
-    if (measurement->time) {
-      snprintf(text_buffer, sizeof(text_buffer)+ 16, "Time: %d s", (measurement->time / 1000));
-    }
-    else {
-      snprintf(text_buffer, sizeof(text_buffer), "                ");
-    }
-    gfx_setTextSize(1);
-    gfx_setCursor(5, 30);
-    gfx_puts("    ");
-    gfx_setCursor(5, 30);
-    gfx_puts(text_buffer);
   }
   else {
     finger_was_out = 1;
