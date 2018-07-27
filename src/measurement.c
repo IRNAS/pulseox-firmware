@@ -161,7 +161,7 @@ uint32_t last_time = 0;
 
 // for measuring calibration time
 uint32_t start_time = 0;
-uint8_t first_time = 1;
+uint8_t first_run = 1;
 
 // Measurement callback.
 measurement_update_callback_t callback_on_update = NULL;
