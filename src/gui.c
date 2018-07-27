@@ -31,8 +31,8 @@ struct gui_state {
   uint16_t width;
   uint16_t height;
   // Current display values.
-  int display_hr;
-  int display_spo2;
+  //int display_hr;
+  //int display_spo2;
   // Current waveform X coordinate. Wraps around display width.
   uint16_t waveform_x;
   // Last waveform update.
@@ -66,8 +66,8 @@ void gui_init(uint16_t width, uint16_t height)
   state.width = width;
   state.height = height;
 
-  state.display_hr = -1;
-  state.display_spo2 = -1;
+  //state.display_hr = -1;
+  //state.display_spo2 = -1;
 
   // Initialize waveform.
   state.waveform_x = 0;
@@ -106,8 +106,8 @@ void gui_measurement_update(const measurement_t *measurement)
       if (finger_was_out == 1 || state.display_calibrating == 1) {
         gfx_fillRect(0, 0, state.width, state.height - GUI_WAVEFORM_HEIGHT, 0x00);
         finger_was_out = 0;
-        state.display_hr = -1;
-        state.display_spo2 = -1;
+        //state.display_hr = -1;
+        //state.display_spo2 = -1;
         state.ir_brightness = 0;
         state.red_brightness = 0;
       } 
