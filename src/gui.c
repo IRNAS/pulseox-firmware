@@ -48,6 +48,10 @@ struct gui_state {
 
   uint8_t display_finger_out;
   uint8_t display_calibrating;
+  
+  uint16_t ir_brigthness;
+  uint16_t red_brightness;
+  uint32_t time;
 };
 
 // GUI state.
@@ -75,6 +79,10 @@ void gui_init(uint16_t width, uint16_t height)
 
   state.display_finger_out = 0;
   state.display_calibrating = 0;
+  
+  state.ir_brightness = 0;
+  state.red_brightness = 0;
+  state.time = 0;
 
   gfx_fillScreen(0x00);
 }
@@ -100,56 +108,61 @@ void gui_measurement_update(const measurement_t *measurement)
         finger_was_out = 0;
         state.display_hr = -1;
         state.display_spo2 = -1;
+        state.ir_brightness = 0;
+        state.red_brigthness = 0;
       } 
       state.display_calibrating = 0;
       // Update current heart rate and SpO2 displays.
-      if (measurement->hr != state.display_hr) {
-        gfx_setTextSize(1);
-        gfx_setTextColor(0x80, 0x00);
-        gfx_setCursor(90, 12);
-        gfx_puts("HR");
-
-        if (measurement->hr) {
-          snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->hr);
-        } 
-        else {
-          snprintf(text_buffer, sizeof(text_buffer), "--");
-        }
-
-        gfx_setTextSize(2);
-        gfx_setCursor(80, 26);
-        gfx_puts("   ");
-        gfx_setCursor(80, 26);
-        gfx_puts(text_buffer);
-        state.display_hr = measurement->hr;
-      }
-
-      if (measurement->spo2 != state.display_spo2) {
+      if (measurement->ir_brightness!= state.ir_brightness) {
         gfx_setTextSize(1);
         gfx_setTextColor(0x80, 0x00);
         gfx_setCursor(20, 0);
-        gfx_puts("SpO2%");
+        gfx_puts("IR");
 
-        if (measurement->spo2) {
-          if (measurement->spo2 > 0 && measurement->spo2 <= 99) {
-            snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->spo2);
-          } else {
-            snprintf(text_buffer, sizeof(text_buffer), "??");
-          }
+        if (measurement->ir_brightness) {
+          snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->ir_brightness);
+        } 
+        else {
+          snprintf(text_buffer, sizeof(text_buffer), "--");
+        }
+
+        gfx_setTextSize(1);
+        gfx_setCursor(15, 15);
+        gfx_puts("     ");
+        gfx_setCursor(15, 15);
+        gfx_puts(text_buffer);
+        state.ir_brightness = measurement->ir_brightness;
+      }
+
+      if (measurement->red_brightness != state.red_brightness) {
+        gfx_setTextSize(1);
+        gfx_setTextColor(0x80, 0x00);
+        gfx_setCursor(80, 0);
+        gfx_puts("RED");
+
+        if (measurement->red_brightness) {
+         snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->red_brightness);
         } 
         else {
           snprintf(text_buffer, sizeof(text_buffer), "--");
         }
         
-        gfx_setTextSize(3);
-        gfx_setCursor(15, 14);
-        gfx_puts("  ");
-        gfx_setCursor(15, 14);
+        gfx_setTextSize(1);
+        gfx_setCursor(70, 15);
+        gfx_puts("     ");
+        gfx_setCursor(70, 15);
         gfx_puts(text_buffer);
         
-        state.display_spo2 = measurement->spo2;
+        state.red_brightness = measurement->red_brightness;
       }
     }
+    // Display time needed for calibration
+    snprintf(text_buffer, sizeof(text_buffer), "Calib. time: %d s", measurement->time);
+    gfx_setTextSize(1);
+    gfx_setCursor(20, 30);
+    gfx_puts("    ");
+    gfx_setCursor(20, 30);
+    gfx_puts(text_buffer);
   }
   else {
     finger_was_out = 1;
