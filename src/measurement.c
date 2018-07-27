@@ -161,6 +161,7 @@ uint32_t last_time = 0;
 
 // for measuring calibration time
 uint32_t start_time = 0;
+uint8_t first_time = 1;
 
 // Measurement callback.
 measurement_update_callback_t callback_on_update = NULL;
@@ -549,13 +550,19 @@ void measurement_update()
         current_measurement.is_calibrating = 0;
         current_measurement.ir_brightness = led_config[0].duty_on;
         current_measurement.red_brightness = led_config[1].duty_on;
-        current_measurement.time = now - start_time;
+        if (first_run == 2) {
+          current_measurement.time = now - start_time;
+          first_run = 0;
+        }
         start_time = 0;
-        // to enkrat naredit, al ponovit vsakič ko se calibrata?
+       
       }
       else {
         current_measurement.is_calibrating = 1;
-        start_time = now;
+        if (first_run == 1) {
+          start_time = now;
+          first_run = 2;
+        }
       }
     }
     else {
