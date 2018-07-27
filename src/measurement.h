@@ -87,6 +87,10 @@ typedef struct {
   float waveform_spo2_max;
   uint8_t finger_in;
   uint8_t is_calibrating;
+  
+  uint16_t ir_brightness;
+  uint16_t red_brightness;
+  uint32_t time;
 } measurement_t;
 
 typedef struct {
