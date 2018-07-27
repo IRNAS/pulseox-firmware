@@ -159,6 +159,9 @@ bool plus_step_ir = false;
 bool minus_step_red = false;
 uint32_t last_time = 0;
 
+// for measuring calibration time
+uint32_t start_time = 0;
+
 // Measurement callback.
 measurement_update_callback_t callback_on_update = NULL;
 
@@ -544,14 +547,21 @@ void measurement_update()
       // Check status of brightness calibration
       if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) {
         current_measurement.is_calibrating = 0;
+        current_measurement.ir_brightness = led_config[0].duty_on;
+        current_measurement.red_brightness = led_config[1].duty_on;
+        current_measurement.time = now - start_time;
+        start_time = 0;
+        // to enkrat naredit, al ponovit vsakič ko se calibrata?
       }
       else {
         current_measurement.is_calibrating = 1;
+        start_time = now;
       }
     }
     else {
       current_measurement.finger_in = 0;
       current_measurement.is_calibrating = 0;
+      start_time = 0;
     }
 
     // IR.
