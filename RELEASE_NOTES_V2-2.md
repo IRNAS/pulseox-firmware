@@ -10,4 +10,5 @@
 - User interface features added
 
 ## User Action
-- Brightness adjustment parameters still need to be optimized. Glia team is instructed to follow the procedure described [here](https://github.com/IRNAS/pulseox-testing/tree/master/firmware_test_debug/V2-2). Upon completion IRNAS team will release the complete V2-2 firmware.
+- Read the updated sections in [this repository](https://github.com/IRNAS/pulseox-testing/tree/master/firmware_test_debug/V2-2).
+- Brightness adjustment parameters still need to be optimized. Glia team is instructed to follow the procedure described [in this issue](https://github.com/IRNAS/pulseox-testing/issues/2). Upon completion IRNAS team will release the complete V2-2 firmware.
