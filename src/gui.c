@@ -159,9 +159,9 @@ void gui_measurement_update(const measurement_t *measurement)
     // Display time needed for calibration
     snprintf(text_buffer, sizeof(text_buffer), "Calib. time: %d s", measurement->time);
     gfx_setTextSize(1);
-    gfx_setCursor(20, 30);
+    gfx_setCursor(5, 30);
     gfx_puts("    ");
-    gfx_setCursor(20, 30);
+    gfx_setCursor(5, 30);
     gfx_puts(text_buffer);
   }
   else {
