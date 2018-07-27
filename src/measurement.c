@@ -568,7 +568,7 @@ void measurement_update()
     else {
       current_measurement.finger_in = 0;
       current_measurement.is_calibrating = 0;
-      start_time = 0;
+      first_run = 1;
     }
 
     // IR.
