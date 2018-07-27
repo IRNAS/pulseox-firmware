@@ -90,7 +90,7 @@ typedef struct {
   
   uint16_t ir_brightness;
   uint16_t red_brightness;
-  uint32_t time;
+  int time;
 } measurement_t;
 
 typedef struct {

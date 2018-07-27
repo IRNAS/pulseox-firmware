@@ -49,7 +49,7 @@ struct gui_state {
   uint8_t display_finger_out;
   uint8_t display_calibrating;
   
-  uint16_t ir_brigthness;
+  uint16_t ir_brightness;
   uint16_t red_brightness;
   uint32_t time;
 };
@@ -109,7 +109,7 @@ void gui_measurement_update(const measurement_t *measurement)
         state.display_hr = -1;
         state.display_spo2 = -1;
         state.ir_brightness = 0;
-        state.red_brigthness = 0;
+        state.red_brightness = 0;
       } 
       state.display_calibrating = 0;
       // Update current heart rate and SpO2 displays.
@@ -157,7 +157,7 @@ void gui_measurement_update(const measurement_t *measurement)
       }
     }
     // Display time needed for calibration
-    snprintf(text_buffer, sizeof(text_buffer), "Calib. time: %d s", measurement->time);
+    snprintf(text_buffer, sizeof(text_buffer)+ 16, "Calib. time: %d s", measurement->time);
     gfx_setTextSize(1);
     gfx_setCursor(5, 30);
     gfx_puts("    ");
