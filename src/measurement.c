@@ -546,28 +546,30 @@ void measurement_update()
     if (raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
       // Check status of brightness calibration
-      if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) {
+      if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) {   // when sqi values are ok
         current_measurement.is_calibrating = 0;
         current_measurement.ir_brightness = led_config[0].duty_on;
         current_measurement.red_brightness = led_config[1].duty_on;
-        if (first_run == 2) {
+        if (first_run == 2) { // time finish
           current_measurement.time = now - start_time;
           first_run = 0;
         }
-        start_time = 0;
-       
       }
-      else {
+      else { // when system is calibrating
         current_measurement.is_calibrating = 1;
-        if (first_run == 1) {
+        if (first_run == 1) { // finger was out until now
           start_time = now;
+          first_run = 2;
+        }
+        else if (first_run == 0) {  // sqi were ok until now
           first_run = 2;
         }
       }
     }
-    else {
+    else {  // when finger is out
       current_measurement.finger_in = 0;
       current_measurement.is_calibrating = 0;
+      start_time = 0;
       first_run = 1;
       current_measurement.time = 0;
     }

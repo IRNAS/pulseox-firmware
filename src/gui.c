@@ -127,9 +127,9 @@ void gui_measurement_update(const measurement_t *measurement)
         }
 
         gfx_setTextSize(1);
-        gfx_setCursor(15, 15);
+        gfx_setCursor(17, 15);
         gfx_puts("     ");
-        gfx_setCursor(15, 15);
+        gfx_setCursor(17, 15);
         gfx_puts(text_buffer);
         state.ir_brightness = measurement->ir_brightness;
       }
@@ -148,9 +148,9 @@ void gui_measurement_update(const measurement_t *measurement)
         }
         
         gfx_setTextSize(1);
-        gfx_setCursor(70, 15);
+        gfx_setCursor(77, 15);
         gfx_puts("     ");
-        gfx_setCursor(70, 15);
+        gfx_setCursor(77, 15);
         gfx_puts(text_buffer);
         
         state.red_brightness = measurement->red_brightness;
@@ -161,12 +161,12 @@ void gui_measurement_update(const measurement_t *measurement)
         snprintf(text_buffer, sizeof(text_buffer)+ 16, "Time: %d s", (measurement->time / 1000));
       }
       else {
-        snprintf(text_buffer, sizeof(text_buffer), "               ");
+        snprintf(text_buffer, sizeof(text_buffer), "              ");
       }
       gfx_setTextSize(1);
-      gfx_setCursor(5, 30);
-      gfx_puts("    ");
-      gfx_setCursor(5, 30);
+      gfx_setCursor(10, 30);
+      gfx_puts("          ");
+      gfx_setCursor(10, 30);
       gfx_puts(text_buffer);
     }
   }
