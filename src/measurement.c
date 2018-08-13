@@ -607,11 +607,10 @@ void measurement_update()
     // Compute derived measurements.
     static float ratio = 0.0;
     if (pulse_present) {
-      current_measurement.hr = (int) pulse_current_bpm;
-
       if (spo2_beats >= SPO2_UPDATE_BEATS) {
         ratio = qfp_fsqrt_fast(ac_sqsum_red / ac_sqsum_ir);
         current_measurement.spo2 = spo2_lookup(ratio);
+        current_measurement.ratio = (int) (ratio * 100);
 
         // Reset readings.
         ac_sqsum_ir = 0.0;
@@ -622,7 +621,7 @@ void measurement_update()
     } 
     else {
       // No pulse present, SpO2 should be ignored.
-      current_measurement.hr = 0;
+      current_measurement.ratio = 0;
       current_measurement.spo2 = 0;
     }
 

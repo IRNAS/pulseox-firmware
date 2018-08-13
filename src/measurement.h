@@ -79,8 +79,8 @@ float noise_red_buffer[RAW_BUFFER_SIZE];
 
 typedef struct {
   // Derived measurements.
-  int hr;
   int spo2;
+  int ratio;
   // Data for drawing the waveform;
   float waveform_spo2;
   float waveform_spo2_min;

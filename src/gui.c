@@ -31,7 +31,7 @@ struct gui_state {
   uint16_t width;
   uint16_t height;
   // Current display values.
-  int display_hr;
+  int display_ratio;
   int display_spo2;
   // Current waveform X coordinate. Wraps around display width.
   uint16_t waveform_x;
@@ -62,7 +62,7 @@ void gui_init(uint16_t width, uint16_t height)
   state.width = width;
   state.height = height;
 
-  state.display_hr = -1;
+  state.display_ratio = -1;
   state.display_spo2 = -1;
 
   // Initialize waveform.
@@ -98,30 +98,30 @@ void gui_measurement_update(const measurement_t *measurement)
       if (finger_was_out == 1 || state.display_calibrating == 1) {
         gfx_fillRect(0, 0, state.width, state.height - GUI_WAVEFORM_HEIGHT, 0x00);
         finger_was_out = 0;
-        state.display_hr = -1;
+        state.display_ratio = -1;
         state.display_spo2 = -1;
       } 
       state.display_calibrating = 0;
       // Update current heart rate and SpO2 displays.
-      if (measurement->hr != state.display_hr) {
+      if (measurement->ratio != state.display_ratio) {
         gfx_setTextSize(1);
         gfx_setTextColor(0x80, 0x00);
-        gfx_setCursor(90, 12);
-        gfx_puts("HR");
+        gfx_setCursor(79, 12);
+        gfx_puts("RATIO");
 
-        if (measurement->hr) {
-          snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->hr);
+        if (measurement->ratio != 0) {
+          snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->ratio);
         } 
         else {
           snprintf(text_buffer, sizeof(text_buffer), "--");
         }
 
         gfx_setTextSize(2);
-        gfx_setCursor(80, 26);
+        gfx_setCursor(75, 26);
         gfx_puts("   ");
-        gfx_setCursor(80, 26);
+        gfx_setCursor(75, 26);
         gfx_puts(text_buffer);
-        state.display_hr = measurement->hr;
+        state.display_ratio = measurement->ratio;
       }
 
       if (measurement->spo2 != state.display_spo2) {
