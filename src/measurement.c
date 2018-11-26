@@ -106,6 +106,8 @@ butterworth_filter_t butt_filter_spo2_ir = { .v = {0., 0., 0.} };
 butterworth_filter_t butt_filter_spo2_red = { .v = {0., 0., 0.} };
 butterworth_filter_t butt_filter_ir_h = { .v = {0., 0., 0.} };
 butterworth_filter_t butt_filter_red_h = { .v = {0., 0., 0.} };
+butterworth_filter_t butt_filter_ir_ambient = { .v = {0., 0., 0.} };
+butterworth_filter_t butt_filter_red_ambient = { .v = {0., 0., 0.} };
 
 // Pulse detection state.
 enum {
@@ -556,17 +558,19 @@ void measurement_update()
 
     // IR.
     float dc_ir = filter_dc(&dc_filter_ir, (float) raw.ir, DC_FILTER_ALPHA);
-    float mean_ir = filter_mean(&mean_diff_ir, dc_ir, 1);
+    float butt_ambient_ir = filter_butterworth_hp_ambient(&butt_filter_ir_ambient, dc_ir);
+    float mean_ir = filter_mean(&mean_diff_ir, butt_ambient_ir, 1);
     mean_ir = filter_mean(&rolling_mean_ir, mean_ir, 0);
-    float butt_ir = filter_butterworth_lp(&butt_filter_ir, dc_ir);
+    float butt_ir = filter_butterworth_lp(&butt_filter_ir, butt_ambient_ir);
 
     // Red.
     float dc_red = filter_dc(&dc_filter_red, (float) raw.red, DC_FILTER_ALPHA);
-    float butt_red = filter_butterworth_lp(&butt_filter_red, dc_red);
+    float butt_ambient_red = filter_butterworth_hp_ambient(&butt_filter_red_ambient, dc_red);
+    float butt_red = filter_butterworth_lp(&butt_filter_red, butt_ambient_red);
 
     // add IR data to STD buffer
     if (std_ir_buf_full == false) {
-      float noise_ir = filter_butterworth_hp(&butt_filter_ir_h, dc_ir);
+      float noise_ir = filter_butterworth_hp(&butt_filter_ir_h, butt_ambient_ir);
       noise_ir_buffer[cur_std_element_ir] = noise_ir;
       cur_std_element_ir++;
       if (cur_std_element_ir == RAW_BUFFER_SIZE) {
@@ -576,7 +580,7 @@ void measurement_update()
     }
     // add RED data to STD buffer
     if (std_red_buff_full == false) {
-      float noise_red = filter_butterworth_hp(&butt_filter_red_h, dc_red);
+      float noise_red = filter_butterworth_hp(&butt_filter_red_h, butt_ambient_red);
       noise_red_buffer[cur_std_element_red] = noise_red;
       cur_std_element_red++;
       if (cur_std_element_red == RAW_BUFFER_SIZE) {
@@ -652,10 +656,10 @@ void measurement_update()
     uart_putc(',');
     uart_puti(raw.ir);
     uart_putc(',');
-    uart_puti((int) (dc_ir * 100));
+    uart_puti((int) (butt_ambient_ir * 100));
     uart_putc(',');
-    //uart_puti((int) (mean_ir * 100));
-    //uart_putc(',');
+    uart_puti((int) (mean_ir * 100));
+    uart_putc(',');
     uart_puti((int) (butt_ir * 100));
     uart_putc(',');
     //uart_puti((int) (noise_ir * 100));
@@ -681,8 +685,6 @@ void measurement_update()
     uart_putc(',');
     uart_puti((int) (ratio * 100));
     uart_putc(',');
-    uart_puti(raw.ambient);
-    uart_putc(',');
     */
     uart_puti(raw.red);
     uart_putc(',');
@@ -693,6 +695,8 @@ void measurement_update()
     uart_puti((int) (sqi_ir * 100));
     uart_putc(',');
     uart_puti((int) (sqi_red * 100));
+    uart_putc(',');
+    uart_puti(raw.ambient);
     //uart_puts(',');
     //uart_puti((int) (pulse_present));
     //uart_putc(',');

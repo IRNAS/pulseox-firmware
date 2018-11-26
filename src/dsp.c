@@ -73,3 +73,14 @@ float filter_butterworth_hp(butterworth_filter_t *filter, float x) // 20 Hz, ord
 
   return (filter->v[0] + filter->v[2]) - 2 * filter->v[1];
 }
+
+float filter_butterworth_hp_ambient(butterworth_filter_t *filter, float x) // 0,35 Hz, order 2
+{
+  filter->v[0] = filter->v[1];
+  filter->v[1] = filter->v[2];
+  filter->v[2] = (0.98457018f * x)   // b1
+                  + (-0.96937846f * filter->v[0]) // -a3
+                  + (1.96890227f * filter->v[1]); // -a2
+
+  return (filter->v[0] + filter->v[2]) - 2 * filter->v[1];
+}

@@ -26,8 +26,8 @@
 #define RED_DEFAULT 250          // default RED brightness defines at which brightness level the calibration loops starts
 #define IR_MAX 350               // Maximum IR brightness value defines where the IR brightness changing loop changes direction 
 #define RED_MAX 5000             // Maximum RED brightness value defines where the IR brightness changing loop changes direction 
-#define IR_MIN 20               // Minimum IR brightness value
-#define RED_MIN 250             // Minimum RED brightness value 
+#define IR_MIN 20                // Minimum IR brightness value
+#define RED_MIN 250              // Minimum RED brightness value 
 
 #define CHANGE_BRIGHT_DELAY 3000  // setup loop delay in ms
 #define SQI_IR_BORDER 0.8f        // IR test loop border value
