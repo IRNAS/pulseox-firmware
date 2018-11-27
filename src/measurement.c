@@ -121,6 +121,7 @@ uint32_t pulse_current_timestamp = 0;
 uint32_t pulse_last_timestamp = 0;
 uint8_t pulse_beats = 0;
 uint8_t pulse_present = 0;
+bool ir_peaks_present = false;
 float pulse_previous_value = 0.0;
 float pulse_current_bpm = 0.0;
 
@@ -253,6 +254,7 @@ int measurement_detect_pulse(uint16_t raw, float value)
     pulse_previous_value = 0;
     pulse_current_bpm = 0.0;
     pulse_beats = 0;
+    ir_peaks_present = false;
     pulse_present = 0;
     memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
     if (empty_ir_need == true) {
@@ -298,6 +300,7 @@ int measurement_detect_pulse(uint16_t raw, float value)
           sqi_ir_loop();
           cur_amp_element_ir = 0;
         }
+        ir_peaks_present = true;
 
         // Compute BPM.
         float raw_bpm = 60000.0 / (float) beat_duration;
@@ -539,98 +542,105 @@ void measurement_update()
 
   if (now - last_measurement > measurement_delay) {
     raw_measurement_t raw = measurement_read();
+    
+    // Intially set values to 0 - for debug output if finger is not detected
+    float butt_ir = 0.0;
+    float dc_red = 0.0;
+    float butt_ambient_red = 0.0;
+    float butt_red = 0.0;
 
     //Finger detect
     if (raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
       // Check status of brightness calibration
-      if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) {
+      if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) { // both SQI-s are OK
         current_measurement.is_calibrating = 0;
       }
-      else {
+      else {  // Calibration loop
         current_measurement.is_calibrating = 1;
       }
     }
-    else {
+    else {  // Finger out
       current_measurement.finger_in = 0;
       current_measurement.is_calibrating = 0;
     }
 
-    // IR.
+    // IR signal - all time necessary variables
     float dc_ir = filter_dc(&dc_filter_ir, (float) raw.ir, DC_FILTER_ALPHA);
     float butt_ambient_ir = filter_butterworth_hp_ambient(&butt_filter_ir_ambient, dc_ir);
     float mean_ir = filter_mean(&mean_diff_ir, butt_ambient_ir, 1);
     mean_ir = filter_mean(&rolling_mean_ir, mean_ir, 0);
-    float butt_ir = filter_butterworth_lp(&butt_filter_ir, butt_ambient_ir);
+    if (current_measurement.finger_in) {
+      // IR.
+      butt_ir = filter_butterworth_lp(&butt_filter_ir, butt_ambient_ir);
+      // Red.
+      dc_red = filter_dc(&dc_filter_red, (float) raw.red, DC_FILTER_ALPHA);
+      butt_ambient_red = filter_butterworth_hp_ambient(&butt_filter_red_ambient, dc_red);
+      butt_red = filter_butterworth_lp(&butt_filter_red, butt_ambient_red);
 
-    // Red.
-    float dc_red = filter_dc(&dc_filter_red, (float) raw.red, DC_FILTER_ALPHA);
-    float butt_ambient_red = filter_butterworth_hp_ambient(&butt_filter_red_ambient, dc_red);
-    float butt_red = filter_butterworth_lp(&butt_filter_red, butt_ambient_red);
-
-    // add IR data to STD buffer
-    if (std_ir_buf_full == false) {
-      float noise_ir = filter_butterworth_hp(&butt_filter_ir_h, butt_ambient_ir);
-      noise_ir_buffer[cur_std_element_ir] = noise_ir;
-      cur_std_element_ir++;
-      if (cur_std_element_ir == RAW_BUFFER_SIZE) {
-        std_ir_buf_full = true;
-        cur_std_element_ir = 0;
+      // add IR data to STD buffer
+      if (std_ir_buf_full == false) {
+        float noise_ir = filter_butterworth_hp(&butt_filter_ir_h, butt_ambient_ir);
+        noise_ir_buffer[cur_std_element_ir] = noise_ir;
+        cur_std_element_ir++;
+        if (cur_std_element_ir == RAW_BUFFER_SIZE) {
+          std_ir_buf_full = true;
+          cur_std_element_ir = 0;
+        }
       }
-    }
-    // add RED data to STD buffer
-    if (std_red_buff_full == false) {
-      float noise_red = filter_butterworth_hp(&butt_filter_red_h, butt_ambient_red);
-      noise_red_buffer[cur_std_element_red] = noise_red;
-      cur_std_element_red++;
-      if (cur_std_element_red == RAW_BUFFER_SIZE) {
-        std_red_buff_full = true;
-        cur_std_element_red = 0;
+      // add RED data to STD buffer
+      if (std_red_buff_full == false) {
+        float noise_red = filter_butterworth_hp(&butt_filter_red_h, butt_ambient_red);
+        noise_red_buffer[cur_std_element_red] = noise_red;
+        cur_std_element_red++;
+        if (cur_std_element_red == RAW_BUFFER_SIZE) {
+          std_red_buff_full = true;
+          cur_std_element_red = 0;
+        }
+      }
+      // Normalize IR and red AC by their DC components.
+      float norm_ir = dc_ir / dc_filter_ir.w;
+      float norm_red = dc_red / dc_filter_red.w;
+
+      float butt_norm_ir = filter_butterworth_lp(&butt_filter_spo2_ir, norm_ir);
+      float butt_norm_red = filter_butterworth_lp(&butt_filter_spo2_red, norm_red);
+
+      ac_sqsum_ir += butt_norm_ir * butt_norm_ir;
+      ac_sqsum_red += butt_norm_red * butt_norm_red;
+      spo2_samples++;
+
+      // Detect peaks in red signal
+      red_detect_mins(raw.red, butt_red);
+
+      // Perform pulse detection.
+      if (measurement_detect_pulse(raw.ir, butt_ir)) {
+        spo2_beats++;
+      }
+
+      // Compute derived measurements.
+      static float ratio = 0.0;
+      if (pulse_present) {
+        current_measurement.hr = (int) pulse_current_bpm;
+
+        if (spo2_beats >= SPO2_UPDATE_BEATS) {
+          ratio = qfp_fsqrt_fast(ac_sqsum_red / ac_sqsum_ir);
+          current_measurement.spo2 = spo2_lookup(ratio);
+
+          // Reset readings.
+          ac_sqsum_ir = 0.0;
+          ac_sqsum_red = 0.0;
+          spo2_samples = 0;
+          spo2_beats = 0;
+        }
+      } 
+      else {
+        // No pulse present, SpO2 should be ignored.
+        current_measurement.hr = 0;
+        current_measurement.spo2 = 0;
       }
     }
     
-    // Normalize IR and red AC by their DC components.
-    float norm_ir = dc_ir / dc_filter_ir.w;
-    float norm_red = dc_red / dc_filter_red.w;
-
-    float butt_norm_ir = filter_butterworth_lp(&butt_filter_spo2_ir, norm_ir);
-    float butt_norm_red = filter_butterworth_lp(&butt_filter_spo2_red, norm_red);
-
-    ac_sqsum_ir += butt_norm_ir * butt_norm_ir;
-    ac_sqsum_red += butt_norm_red * butt_norm_red;
-    spo2_samples++;
-
-    // Detect peaks in red signal
-    red_detect_mins(raw.red, butt_red);
-
-    // Perform pulse detection.
-    if (measurement_detect_pulse(raw.ir, butt_ir)) {
-      spo2_beats++;
-    }
-
-    // Compute derived measurements.
-    static float ratio = 0.0;
-    if (pulse_present) {
-      current_measurement.hr = (int) pulse_current_bpm;
-
-      if (spo2_beats >= SPO2_UPDATE_BEATS) {
-        ratio = qfp_fsqrt_fast(ac_sqsum_red / ac_sqsum_ir);
-        current_measurement.spo2 = spo2_lookup(ratio);
-
-        // Reset readings.
-        ac_sqsum_ir = 0.0;
-        ac_sqsum_red = 0.0;
-        spo2_samples = 0;
-        spo2_beats = 0;
-      }
-    } 
-    else {
-      // No pulse present, SpO2 should be ignored.
-      current_measurement.hr = 0;
-      current_measurement.spo2 = 0;
-    }
-
-    // Provide data for the waveform.
+    // Provide data for the waveform - displayed all the time
     current_measurement.waveform_spo2_min = SPO2_WAVEFORM_MIN;
     current_measurement.waveform_spo2_max = SPO2_WAVEFORM_MAX;
     current_measurement.waveform_spo2 = mean_ir;
@@ -651,7 +661,6 @@ void measurement_update()
 
 #ifdef PULSEOX_DEBUG
     // Output measurements.
-    
     uart_puti((int) now);
     uart_putc(',');
     uart_puti(raw.ir);
@@ -723,7 +732,7 @@ void measurement_update()
   // Setup loop
   if (current_measurement.finger_in == 1) {
     if (((now - last_time) > CHANGE_BRIGHT_DELAY)) {
-      if (pulse_present != 1) {
+      if (ir_peaks_present != true) {
         change_brightness_ir();
       }
       if (red_peaks_present != true) {
