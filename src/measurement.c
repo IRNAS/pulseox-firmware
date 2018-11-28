@@ -553,7 +553,8 @@ void measurement_update()
     if (raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
       // Check status of brightness calibration
-      if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) { // both SQI-s are OK
+      if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) { 
+        // both SQI-s are OK - display hr and sp02 values
         current_measurement.is_calibrating = 0;
       }
       else {  // Calibration loop
@@ -563,6 +564,9 @@ void measurement_update()
     else {  // Finger out
       current_measurement.finger_in = 0;
       current_measurement.is_calibrating = 0;
+      // reset SQI-s
+      sqi_ir = 0.0;
+      sqi_red = 0.0;
     }
 
     // IR signal - all time necessary variables
