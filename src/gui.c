@@ -45,9 +45,11 @@ struct gui_state {
   // Low battery blinking.
   uint8_t low_battery_visible;
   uint32_t low_battery_toggled;
-
+  // Finger out display and calibrating blinking
   uint8_t display_finger_out;
   uint8_t display_calibrating;
+  uint32_t calibrating_toggled;
+  uint8_t device_calibrating;
 };
 
 // GUI state.
@@ -58,7 +60,7 @@ char text_buffer[16] = {0,};
 uint8_t finger_was_out = 0;
 
 // TESTING variables
-//uint8_t test = 1;
+uint8_t test = 1;
 
 void gui_init(uint16_t width, uint16_t height)
 {
@@ -78,6 +80,8 @@ void gui_init(uint16_t width, uint16_t height)
 
   state.display_finger_out = 0;
   state.display_calibrating = 0;
+  state.calibrating_toggled = 0;
+  state.device_calibrating = 0;
 
   gfx_fillScreen(0x00);
 }
@@ -94,20 +98,22 @@ void gui_measurement_update(const measurement_t *measurement)
     }
 
     if (measurement->is_calibrating == 1) {
-      if (state.display_calibrating != 1) {
+      state.device_calibrating = 1;
+      //if (state.display_calibrating != 1) {
         //gfx_fillRect(0, 0, state.width, state.height - GUI_WAVEFORM_HEIGHT, 0x00);
-        gfx_setCursor(40, 0);
-        gfx_setTextColor(0x80, 0x00);
-        gfx_setTextSize(1);
-        gfx_puts("CALIBRATING");
-      }
-      state.display_calibrating = 1;
+        //gfx_setCursor(40, 0);
+        //gfx_setTextColor(0x80, 0x00);
+        //gfx_setTextSize(1);
+        //gfx_puts("CALIBRATING");
+      //}
+      //state.display_calibrating = 1;
     }
     else {
-      if (state.display_calibrating == 1) {
-        gfx_fillRect(40, 0, state.width, 10, 0x00);
-        state.display_calibrating = 0;
-      }
+      state.device_calibrating = 0;
+      //if (state.display_calibrating == 1) {
+        //gfx_fillRect(40, 0, state.width, 10, 0x00);
+        //state.display_calibrating = 0;
+      //}
     }
     
     // Update current heart rate and SpO2 displays.
@@ -150,9 +156,9 @@ void gui_measurement_update(const measurement_t *measurement)
       }
 
       gfx_setTextSize(2);
-      gfx_setCursor(15, 26);
+      gfx_setCursor(14, 26);
       gfx_puts("  ");
-      gfx_setCursor(15, 26);
+      gfx_setCursor(14, 26);
       gfx_puts(text_buffer);
 
       state.display_spo2 = measurement->spo2;
@@ -160,7 +166,7 @@ void gui_measurement_update(const measurement_t *measurement)
   }
   else {
     finger_was_out = 1;
-    state.display_calibrating = 0;
+    state.device_calibrating = 0;
     if (state.display_finger_out != 1 ) {
       gfx_fillRect(0, 0, state.width, state.height - GUI_WAVEFORM_HEIGHT, 0x00);
       gfx_setCursor(25, 20);
@@ -207,8 +213,8 @@ void gui_measurement_update(const measurement_t *measurement)
 
 void gui_render()
 {
-  if (battery_is_low()) {
-  //if (test == 1) {
+  //if (battery_is_low()) {
+  if (test == 1) {
     // Output battery low warning.
     gfx_setTextSize(1);
     gfx_setTextColor(0x80, 0x00);
@@ -218,22 +224,47 @@ void gui_render()
     uint32_t now = clock_millis();
     if (now - state.low_battery_toggled > GUI_BATTERY_LOW_BLINK) {
       if (state.low_battery_visible) {
-        gfx_puts("        ");
+        //gfx_puts("        ");
+        gfx_fillRect(0,0,30,9, 0x00);
         state.low_battery_visible = 0;
       } else {
-        gfx_puts("BAT LOW ");
+        //gfx_puts("BAT LOW ");
+        gfx_drawRect(0,0,25,9, 0x80);
+        gfx_fillRect(25,2,2,5, 0x80);
+        gfx_fillRect(1,1,3,7, 0x80);
         state.low_battery_visible = 1;
       }
-
       state.low_battery_toggled = now;
     }
   } else if (state.low_battery_visible) {
     // Battery is no longer low, hide the warning.
-    gfx_setTextSize(1);
-    gfx_setTextColor(0x80, 0x00);
-    gfx_setCursor(0, 0);
-    gfx_puts("        ");
-
+    //gfx_setTextSize(1);
+    //gfx_setTextColor(0x80, 0x00);
+    //gfx_setCursor(0, 0);
+    //gfx_puts("        ");
+    gfx_fillRect(0,0,30,9, 0x00);
     state.low_battery_visible = 0;
+  }
+  
+  if (state.device_calibrating) {
+    uint32_t now = clock_millis();
+    if (now - state.calibrating_toggled > GUI_BATTERY_LOW_BLINK) {
+      if (state.display_calibrating) {
+        gfx_fillRect(40, 0, state.width, 10, 0x00);
+        state.display_calibrating = 0;
+      }
+      else {
+        gfx_setCursor(40, 0);
+        gfx_setTextColor(0x80, 0x00);
+        gfx_setTextSize(1);
+        gfx_puts("CALIBRATING");
+        state.display_calibrating = 1;
+      }
+      state.calibrating_toggled = now;
+    }
+  }
+  else if (state.display_calibrating) {
+      gfx_fillRect(40, 0, state.width, 10, 0x00);
+      state.display_calibrating = 0;
   }
 }
