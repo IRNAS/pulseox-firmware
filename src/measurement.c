@@ -162,6 +162,12 @@ bool plus_step_ir = false;
 bool minus_step_red = false;
 uint32_t last_time = 0;
 
+// Clipping test
+bool clipping_confirmed = false;
+uint16_t clip_bright_ir = 0;
+uint16_t clip_bright_red = 0;
+bool first_run = true;
+
 // Measurement callback.
 measurement_update_callback_t callback_on_update = NULL;
 
@@ -494,6 +500,20 @@ void sqi_red_loop() {
 
 }
 
+void detect_clipping(uint16_t raw_ir, uint16_t raw_red) {
+  if (raw_ir > MEASUREMENT_THRESHOLD) {
+    // IR brightness change turn to minus 
+    // call function to change brightness
+    // save current brightness value
+  }
+  if (raw_red > MEASUREMENT_THRESHOLD) {
+    // RED brightness change turn to minus 
+    // call function to change brightness
+    // save current brightness value
+  }
+  clipping_confirmed = true;
+}
+
 #ifdef PULSEOX_BOARD_DIAGNOSTIC
 #include "lcd.h"
 
@@ -552,6 +572,7 @@ void measurement_update()
     //Finger detect
     if (raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
+      first_run = false;
       // Check status of brightness calibration
       if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) { 
         // both SQI-s are OK - display hr and sp02 values
@@ -562,11 +583,18 @@ void measurement_update()
       }
     }
     else {  // Finger out
-      current_measurement.finger_in = 0;
-      current_measurement.is_calibrating = 0;
-      // reset SQI-s
-      sqi_ir = 0.0;
-      sqi_red = 0.0;
+      //if clipping is confirmed or we didn't have finger in yet
+      if (clipping_confirmed || first_run) {
+        current_measurement.finger_in = 0;
+        current_measurement.is_calibrating = 0;
+        clipping_confirmed = false;
+        // reset SQI-s
+        sqi_ir = 0.0;
+        sqi_red = 0.0;
+      }
+      else {
+        detect_clipping(raw.ir, raw.red);
+      }
     }
 
     // IR signal - all time necessary variables
