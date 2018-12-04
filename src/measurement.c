@@ -164,8 +164,8 @@ uint32_t last_time = 0;
 
 // Clipping test
 bool clipping_confirmed = false;
-uint16_t clip_bright_ir = 0;
-uint16_t clip_bright_red = 0;
+uint16_t clip_bright_ir = 400;    // IR max brightness value
+uint16_t clip_bright_red = 5000;  // RED max brightness value
 bool first_run = true;
 
 // Measurement callback.
@@ -395,7 +395,7 @@ void change_brightness_ir() {
   if (led_config[0].duty_on < IR_MIN + 1) {  
     plus_step_ir = true;
   }
-  else if (led_config[0].duty_on > IR_MAX - 1) {
+  else if (led_config[0].duty_on > clip_bright_ir - 1) {
     plus_step_ir = false;
   }
 
@@ -408,7 +408,7 @@ void change_brightness_ir() {
 }
 
 void change_brightness_red() {
-  if (led_config[1].duty_on > RED_MAX - 1)  {
+  if (led_config[1].duty_on > clip_bright_red - 1)  {
     minus_step_red = true;
   }
   else if (led_config[1].duty_on < RED_MIN + 1){
@@ -421,6 +421,28 @@ void change_brightness_red() {
   else {
     led_config[1].duty_on += RED_STEP;
   }
+}
+
+void detect_clipping(uint16_t raw_ir, uint16_t raw_red) {
+  if (raw_ir > MEASUREMENT_THRESHOLD) {
+    // IR brightness change turn to minus, call function to change it
+    plus_step_ir = false;
+    change_brightness_ir();
+    // save current brightness value
+    if (clip_bright_ir > led_config[0].duty_on) {
+      clip_bright_ir = led_config[0].duty_on;
+    }
+  }
+  if (raw_red > MEASUREMENT_THRESHOLD) {
+    // RED brightness change turn to minus, call function to change it
+    minus_step_red = true;
+    change_brightness_red();
+    // save current brightness value
+    if (clip_bright_red > led_config[1].duty_on) {
+      clip_bright_red = led_config[1].duty_on;
+    }
+  }
+  clipping_confirmed = true;
 }
 
 void sqi_ir_loop() {
@@ -500,20 +522,6 @@ void sqi_red_loop() {
 
 }
 
-void detect_clipping(uint16_t raw_ir, uint16_t raw_red) {
-  if (raw_ir > MEASUREMENT_THRESHOLD) {
-    // IR brightness change turn to minus 
-    // call function to change brightness
-    // save current brightness value
-  }
-  if (raw_red > MEASUREMENT_THRESHOLD) {
-    // RED brightness change turn to minus 
-    // call function to change brightness
-    // save current brightness value
-  }
-  clipping_confirmed = true;
-}
-
 #ifdef PULSEOX_BOARD_DIAGNOSTIC
 #include "lcd.h"
 
@@ -570,7 +578,7 @@ void measurement_update()
     float butt_red = 0.0;
 
     //Finger detect
-    if (raw.red < MEASUREMENT_THRESHOLD) {
+    if (raw.ir < MEASUREMENT_THRESHOLD && raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
       first_run = false;
       // Check status of brightness calibration
@@ -582,7 +590,7 @@ void measurement_update()
         current_measurement.is_calibrating = 1;
       }
     }
-    else {  // Finger out
+    else {  // Finger out or clipping
       //if clipping is confirmed or we didn't have finger in yet
       if (clipping_confirmed || first_run) {
         current_measurement.finger_in = 0;
@@ -738,10 +746,13 @@ void measurement_update()
     uart_puti((int) (sqi_red * 100));
     uart_putc(',');
     uart_puti(raw.ambient);
-    //uart_puts(',');
+    uart_puts(',');
     //uart_puti((int) (pulse_present));
     //uart_putc(',');
     //uart_puti((int) (red_peaks_present));
+    uart_puti((int) (clip_bright_ir));
+    uart_putc(',');
+    uart_puti((int) (clip_bright_red));
     uart_puts("\r\n");
     
 #endif
