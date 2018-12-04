@@ -3,8 +3,18 @@
 [![Build Status](https://travis-ci.org/IRNAS/pulseox-firmware.svg?branch=master)](https://travis-ci.org/IRNAS/pulseox-firmware)
 
 The following packages are needed for compilation:
+* python
 * cmake
-* gcc-arm-embedded
+* gcc-arm-embedded (arm-none-eabi)
+
+
+To clone repository:
+```
+git clone <url>
+cd pulseox-firmware
+git submodule init
+git submodule update
+```
 
 To compile:
 ```
