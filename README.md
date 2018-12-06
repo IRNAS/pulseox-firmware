@@ -5,7 +5,7 @@
 The following packages are needed for compilation:
 * python
 * cmake
-* gcc-arm-embedded (arm-none-eabi)
+* gcc-arm-embedded from [here](https://launchpad.net/~team-gcc-arm-embedded/+archive/ubuntu/ppa).
 
 
 To clone repository:
