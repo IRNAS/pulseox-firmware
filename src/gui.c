@@ -54,8 +54,9 @@ struct gui_state {
 
 // GUI state.
 struct gui_state state;
-// Temporary text buffer;
+// Temporary text buffers;
 char text_buffer[16] = {0,};
+char text_buffer_hr[16] = {0,};
 // Variable for gui update
 uint8_t finger_was_out = 0;
 
@@ -112,17 +113,17 @@ void gui_measurement_update(const measurement_t *measurement)
       gfx_puts("HR");
 
       if (measurement->hr) {
-        snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->hr);
+        snprintf(text_buffer_hr, sizeof(text_buffer_hr), "%d", measurement->hr);
       } 
       else {
-        snprintf(text_buffer, sizeof(text_buffer), "--");
+        snprintf(text_buffer_hr, sizeof(text_buffer_hr), "--");
       }
 
       gfx_setTextSize(2);
       gfx_setCursor(80, 26);
       gfx_puts("   ");
       gfx_setCursor(80, 26);
-      gfx_puts(text_buffer);
+      gfx_puts(text_buffer_hr);
       state.display_hr = measurement->hr;
     }
 
@@ -207,7 +208,7 @@ void gui_render()
     gfx_setTextColor(0x80, 0x00);
     gfx_setCursor(0, 0);
 
-    // Blink the warning.
+    // Blink the battery warning.
     uint32_t now = clock_millis();
     if (now - state.low_battery_toggled > GUI_BATTERY_LOW_BLINK) {
       if (state.low_battery_visible) {
@@ -229,18 +230,37 @@ void gui_render()
     state.low_battery_visible = 0;
   }
   
+  // Blink the calibrating warning
   if (state.device_calibrating) {
     uint32_t now = clock_millis();
     if (now - state.calibrating_toggled > GUI_BATTERY_LOW_BLINK) {
       if (state.display_calibrating) {
+        // clear calibrating
         gfx_fillRect(40, 0, state.width, 10, 0x00);
+        // write sp02
+        gfx_setTextSize(2);
+        gfx_setCursor(14, 26);
+        gfx_puts(text_buffer);
+        // write hr
+        gfx_setTextSize(2);
+        gfx_setCursor(80, 26);
+        gfx_puts(text_buffer_hr);
         state.display_calibrating = 0;
       }
       else {
+        // write calibrating
         gfx_setCursor(40, 0);
         gfx_setTextColor(0x80, 0x00);
         gfx_setTextSize(1);
         gfx_puts("CALIBRATING");
+        // clear sp02
+        gfx_setTextSize(2);
+        gfx_setCursor(14, 26);
+        gfx_puts("  ");
+        // clear hr
+        gfx_setTextSize(2);
+        gfx_setCursor(80, 26);
+        gfx_puts("   ");
         state.display_calibrating = 1;
       }
       state.calibrating_toggled = now;
