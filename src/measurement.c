@@ -570,6 +570,8 @@ void measurement_update()
 
   if (now - last_measurement > measurement_delay) {
     raw_measurement_t raw = measurement_read();
+    //raw.ir = raw.ir - raw.ambient;
+    //raw.red = raw.red - raw.ambient;
     
     // Intially set values to 0 - for debug output if finger is not detected
     float butt_ir = 0.0;
@@ -581,6 +583,7 @@ void measurement_update()
     if (raw.ir < MEASUREMENT_THRESHOLD && raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
       first_run = false;
+      clipping_confirmed = false;
       // Check status of brightness calibration
       if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) { 
         // both SQI-s are OK - display hr and sp02 values
@@ -737,16 +740,16 @@ void measurement_update()
     */
     uart_puti(raw.red);
     uart_putc(',');
-    uart_puti(led_config[0].duty_on);
+    uart_puti(led_config[0].duty_on); // ir brightness value
     uart_putc(',');
-    uart_puti(led_config[1].duty_on);
+    uart_puti(led_config[1].duty_on); // red brightness value
     uart_putc(',');
     uart_puti((int) (sqi_ir * 100));
     uart_putc(',');
     uart_puti((int) (sqi_red * 100));
     uart_putc(',');
     uart_puti(raw.ambient);
-    uart_puts(',');
+    uart_putc(',');
     //uart_puti((int) (pulse_present));
     //uart_putc(',');
     //uart_puti((int) (red_peaks_present));
