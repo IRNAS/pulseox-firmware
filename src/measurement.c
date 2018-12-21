@@ -44,6 +44,11 @@
 #define DETECTOR_TIMINGS_RISE_TIME 10
 #define DETECTOR_TIMINGS_FALL_TIME 10
 
+#define MIN_LED_IR 100
+#define MIN_LED_RED 3000
+#define MAX_LED_IR 400
+#define MAX_LED_RED 5000
+
 uint16_t detector_read();
 void led_turn_off();
 void led_turn_on(uint32_t led);
@@ -164,8 +169,12 @@ uint32_t last_time = 0;
 
 // Clipping test
 bool clipping_confirmed = false;
-uint16_t clip_bright_ir = 400;    // IR max brightness value
-uint16_t clip_bright_red = 5000;  // RED max brightness value
+uint16_t clip_bright_ir = MAX_LED_IR;    // IR max brightness value
+uint16_t clip_bright_red = MAX_LED_RED;  // RED max brightness value
+uint16_t noise_brigh_ir = MIN_LED_IR;
+uint16_t noise_brigh_red = MIN_LED_RED;
+uint16_t old_ir = 0;
+uint16_t old_red = 0;
 bool first_run = true;
 
 // Measurement callback.
@@ -392,7 +401,7 @@ void red_detect_mins(uint16_t raw, float value) {
 }
   
 void change_brightness_ir() {
-  if (led_config[0].duty_on < IR_MIN + 1) {  
+  if (led_config[0].duty_on < noise_brigh_ir + 1) {  
     plus_step_ir = true;
   }
   else if (led_config[0].duty_on > clip_bright_ir - 1) {
@@ -405,13 +414,20 @@ void change_brightness_ir() {
   else {
     led_config[0].duty_on -= IR_STEP;
   }
+
+     // noise detection
+   if (led_config[0].duty_on <= 100 && plus_step_ir == false) {
+     if (sqi_ir != 0 && sqi_ir < SQI_NOISE_THRESHOLD) { 
+       noise_brigh_ir = led_config[0].duty_on;
+     }
+   }
 }
 
 void change_brightness_red() {
   if (led_config[1].duty_on > clip_bright_red - 1)  {
     minus_step_red = true;
   }
-  else if (led_config[1].duty_on < RED_MIN + 1){
+  else if (led_config[1].duty_on < noise_brigh_red + 1){
     minus_step_red = false;
   }
 
@@ -421,26 +437,35 @@ void change_brightness_red() {
   else {
     led_config[1].duty_on += RED_STEP;
   }
+
+   // noise detection
+   if (led_config[1].duty_on <= 1 && minus_step_red == true) {
+     if (sqi_red != 0 && sqi_red < SQI_NOISE_THRESHOLD) { 
+       noise_brigh_red = led_config[1].duty_on;
+     }
+   }
 }
 
 void detect_clipping(uint16_t raw_ir, uint16_t raw_red) {
   if (raw_ir > MEASUREMENT_THRESHOLD) {
     // IR brightness change turn to minus, call function to change it
-    plus_step_ir = false;
+    //plus_step_ir = false;
+    clip_bright_ir = led_config[0].duty_on;
     change_brightness_ir();
     // save current brightness value
-    if (clip_bright_ir > led_config[0].duty_on) {
-      clip_bright_ir = led_config[0].duty_on;
-    }
+    //if (clip_bright_ir > led_config[0].duty_on) {
+    //  clip_bright_ir = led_config[0].duty_on;
+    //}
   }
   if (raw_red > MEASUREMENT_THRESHOLD) {
     // RED brightness change turn to minus, call function to change it
-    minus_step_red = true;
+    //minus_step_red = true;
+    clip_bright_red = led_config[1].duty_on;
     change_brightness_red();
     // save current brightness value
-    if (clip_bright_red > led_config[1].duty_on) {
-      clip_bright_red = led_config[1].duty_on;
-    }
+    //if (clip_bright_red > led_config[1].duty_on) {
+    //  clip_bright_red = led_config[1].duty_on;
+    //}
   }
   clipping_confirmed = true;
 }
@@ -581,6 +606,7 @@ void measurement_update()
     if (raw.ir < MEASUREMENT_THRESHOLD && raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
       first_run = false;
+      //clipping_confirmed = false;
       // Check status of brightness calibration
       if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) { 
         // both SQI-s are OK - display hr and sp02 values
@@ -599,6 +625,8 @@ void measurement_update()
         // reset SQI-s
         sqi_ir = 0.0;
         sqi_red = 0.0;
+        clip_bright_ir = MAX_LED_IR;
+        clip_bright_red = MAX_LED_RED;
       }
       else {
         detect_clipping(raw.ir, raw.red);
@@ -746,13 +774,13 @@ void measurement_update()
     uart_puti((int) (sqi_red * 100));
     uart_putc(',');
     uart_puti(raw.ambient);
-    uart_puts(',');
+    uart_putc(',');
     //uart_puti((int) (pulse_present));
     //uart_putc(',');
     //uart_puti((int) (red_peaks_present));
-    uart_puti((int) (clip_bright_ir));
+    uart_puti((int) (noise_brigh_ir));
     uart_putc(',');
-    uart_puti((int) (clip_bright_red));
+    uart_puti((int) (noise_brigh_red));
     uart_puts("\r\n");
     
 #endif
