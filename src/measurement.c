@@ -44,10 +44,11 @@
 #define DETECTOR_TIMINGS_RISE_TIME 10
 #define DETECTOR_TIMINGS_FALL_TIME 10
 
+// defined in and max brightness values
 #define MIN_LED_IR 100
-#define MIN_LED_RED 3000
-#define MAX_LED_IR 400
-#define MAX_LED_RED 5000
+#define MIN_LED_RED 2000
+#define MAX_LED_IR 1500
+#define MAX_LED_RED 11000
 
 uint16_t detector_read();
 void led_turn_off();
@@ -169,13 +170,10 @@ uint32_t last_time = 0;
 
 // Clipping test
 bool clipping_confirmed = false;
-uint16_t clip_bright_ir = MAX_LED_IR;    // IR max brightness value
-uint16_t clip_bright_red = MAX_LED_RED;  // RED max brightness value
-uint16_t noise_brigh_ir = MIN_LED_IR;
-uint16_t noise_brigh_red = MIN_LED_RED;
-uint16_t old_ir = 0;
-uint16_t old_red = 0;
-bool first_run = true;
+uint16_t clip_bright_ir = MAX_LED_IR;     // IR max brightness value
+uint16_t clip_bright_red = MAX_LED_RED;   // RED max brightness value
+uint16_t noise_brigh_ir = MIN_LED_IR;     // IR min brightness value
+uint16_t noise_brigh_red = MIN_LED_RED;   // RED min brightness value
 
 // Measurement callback.
 measurement_update_callback_t callback_on_update = NULL;
@@ -311,7 +309,7 @@ int measurement_detect_pulse(uint16_t raw, float value)
         // add data to AMP buffer
         butt_ir_buffer[cur_amp_element_ir] = value;
         cur_amp_element_ir++;
-        if (cur_amp_element_ir == NUM_OF_PERIODS) {
+        if (cur_amp_element_ir == NUM_OF_PERIODS + 1) {
           sqi_ir_loop();
           cur_amp_element_ir = 0;
         }
@@ -364,6 +362,11 @@ void red_detect_mins(uint16_t raw, float value) {
     }
   }
   
+  // If no peaks detected for some time, reset.
+  if (clock_millis() - red_last_timestamp > PULSE_RESET_TIMEOUT) {
+    red_peaks_present = false;
+  }
+  
   switch(pulse_state_red) {
     case PULSE_IDLE: {
       // Idle state: we wait for the value to cross the threshold.
@@ -375,12 +378,14 @@ void red_detect_mins(uint16_t raw, float value) {
     case PULSE_FALLING: {
       if (value < red_previous_value) {
         // Still falling.
+        red_current_timestamp = clock_millis();
       }
       else { 
         // Reached the bottom.
+        red_last_timestamp = red_current_timestamp;
         butt_red_buffer[cur_amp_element_red] = value; // add data to AMP buffer
         cur_amp_element_red++;
-        if (cur_amp_element_red == NUM_OF_PERIODS) {
+        if (cur_amp_element_red == NUM_OF_PERIODS + 1) {
           sqi_red_loop();
           cur_amp_element_red = 0;
         }
@@ -401,6 +406,7 @@ void red_detect_mins(uint16_t raw, float value) {
 }
   
 void change_brightness_ir() {
+  // change direction of brightness change if needed
   if (led_config[0].duty_on < noise_brigh_ir + 1) {  
     plus_step_ir = true;
   }
@@ -408,6 +414,7 @@ void change_brightness_ir() {
     plus_step_ir = false;
   }
 
+  // change brightness for defined step
   if (plus_step_ir) {
     led_config[0].duty_on += IR_STEP;
   }
@@ -415,15 +422,16 @@ void change_brightness_ir() {
     led_config[0].duty_on -= IR_STEP;
   }
 
-     // noise detection
-   if (led_config[0].duty_on <= 100 && plus_step_ir == false) {
-     if (sqi_ir != 0 && sqi_ir < SQI_NOISE_THRESHOLD) { 
-       noise_brigh_ir = led_config[0].duty_on;
-     }
-   }
+  // noise detection
+  if (led_config[0].duty_on <= (5*IR_STEP + MIN_LED_IR) && plus_step_ir == false) {
+    if (sqi_ir != 0 && sqi_ir < SQI_NOISE_THRESHOLD) { 
+      noise_brigh_ir = led_config[0].duty_on;
+    }
+  }
 }
 
 void change_brightness_red() {
+  // change direction of brightness change if needed
   if (led_config[1].duty_on > clip_bright_red - 1)  {
     minus_step_red = true;
   }
@@ -431,6 +439,7 @@ void change_brightness_red() {
     minus_step_red = false;
   }
 
+  // change brightness for defined step
   if (minus_step_red) {
     led_config[1].duty_on -= RED_STEP;
   }
@@ -439,35 +448,11 @@ void change_brightness_red() {
   }
 
    // noise detection
-   if (led_config[1].duty_on <= 1 && minus_step_red == true) {
+   if (led_config[1].duty_on <= (5*RED_STEP + MIN_LED_RED) && minus_step_red == true) {
      if (sqi_red != 0 && sqi_red < SQI_NOISE_THRESHOLD) { 
        noise_brigh_red = led_config[1].duty_on;
      }
    }
-}
-
-void detect_clipping(uint16_t raw_ir, uint16_t raw_red) {
-  if (raw_ir > MEASUREMENT_THRESHOLD) {
-    // IR brightness change turn to minus, call function to change it
-    //plus_step_ir = false;
-    clip_bright_ir = led_config[0].duty_on;
-    change_brightness_ir();
-    // save current brightness value
-    //if (clip_bright_ir > led_config[0].duty_on) {
-    //  clip_bright_ir = led_config[0].duty_on;
-    //}
-  }
-  if (raw_red > MEASUREMENT_THRESHOLD) {
-    // RED brightness change turn to minus, call function to change it
-    //minus_step_red = true;
-    clip_bright_red = led_config[1].duty_on;
-    change_brightness_red();
-    // save current brightness value
-    //if (clip_bright_red > led_config[1].duty_on) {
-    //  clip_bright_red = led_config[1].duty_on;
-    //}
-  }
-  clipping_confirmed = true;
 }
 
 void sqi_ir_loop() {
@@ -605,8 +590,6 @@ void measurement_update()
     //Finger detect
     if (raw.ir < MEASUREMENT_THRESHOLD && raw.red < MEASUREMENT_THRESHOLD) {
       current_measurement.finger_in = 1;
-      first_run = false;
-      //clipping_confirmed = false;
       // Check status of brightness calibration
       if (sqi_ir > SQI_IR_BORDER && sqi_red > SQI_RED_BORDER) { 
         // both SQI-s are OK - display hr and sp02 values
@@ -616,21 +599,12 @@ void measurement_update()
         current_measurement.is_calibrating = 1;
       }
     }
-    else {  // Finger out or clipping
-      //if clipping is confirmed or we didn't have finger in yet
-      if (clipping_confirmed || first_run) {
-        current_measurement.finger_in = 0;
-        current_measurement.is_calibrating = 0;
-        clipping_confirmed = false;
-        // reset SQI-s
-        sqi_ir = 0.0;
-        sqi_red = 0.0;
-        clip_bright_ir = MAX_LED_IR;
-        clip_bright_red = MAX_LED_RED;
-      }
-      else {
-        detect_clipping(raw.ir, raw.red);
-      }
+    else {  // Finger out
+      current_measurement.finger_in = 0;
+      current_measurement.is_calibrating = 0;
+      // reset SQI-s
+      sqi_ir = 0.0;
+      sqi_red = 0.0;
     }
 
     // IR signal - all time necessary variables

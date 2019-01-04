@@ -22,22 +22,21 @@
 #include <stdint.h>
 
 // LED default brightness values - CHANGE IF NEEDED
-#define IR_DEFAULT 260           // default IR brightness defines at which brightness level the calibration loops starts TESTING, default is 160
-#define RED_DEFAULT 4000          // default RED brightness defines at which brightness level the calibration loops starts TESTING, default is 250
-
+#define IR_DEFAULT 800           // default IR brightness defines at which brightness level the calibration loops starts
+#define RED_DEFAULT 2000          // default RED brightness defines at which brightness level the calibration loops starts
 #define CHANGE_BRIGHT_DELAY 3000  // setup loop delay in ms
 #define SQI_IR_BORDER 0.8f        // IR test loop border value
-#define SQI_RED_BORDER 0.8f       // RED test loop border value
-#define PULSE_THRESHOLD -5.0      // Pulse detection threshold
-#define RED_THRESHOLD -3.0        // Peak Detector RED threshold
+#define SQI_RED_BORDER 0.5f       // RED test loop border value
+#define PULSE_THRESHOLD -1.5      // Pulse detection threshold
+#define RED_THRESHOLD -1.5        // Peak Detector RED threshold
 #define IR_STEP 20                // IR brightness change step
 #define RED_STEP 250              // RED brightness change step
-#define SQI_NOISE_THRESHOLD 0.1f  // SQI border under which recorded signal is useless
+#define SQI_NOISE_THRESHOLD 0.3f  // SQI border under which recorded signal is useless
 
 // Buffer size is number of samples needed
 #define RAW_BUFFER_SIZE 200
-// Number of signal periods needed + 1
-#define NUM_OF_PERIODS 2
+// Number of signal periods needed
+#define NUM_OF_PERIODS 3
 // If the raw signal is above this threshold, ignore measurements.
 #define MEASUREMENT_THRESHOLD 2600
 // DC filter alpha.
