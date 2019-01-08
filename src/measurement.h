@@ -35,8 +35,8 @@
 
 // Buffer size is number of samples needed
 #define RAW_BUFFER_SIZE 200
-// Number of signal periods needed
-#define NUM_OF_PERIODS 3
+// Number of signal peaks needed (which is number of periods + 1)
+#define NUM_OF_PEAKS 3
 // If the raw signal is above this threshold, ignore measurements.
 #define MEASUREMENT_THRESHOLD 2600
 // DC filter alpha.
@@ -66,8 +66,8 @@ typedef struct {
 } raw_measurement_t;
 
 // Buffers for AMP computation
-float butt_ir_buffer[NUM_OF_PERIODS];
-float butt_red_buffer[NUM_OF_PERIODS];
+float butt_ir_buffer[NUM_OF_PEAKS];
+float butt_red_buffer[NUM_OF_PEAKS];
 
 // Buffers for STD computation
 float noise_ir_buffer[RAW_BUFFER_SIZE];

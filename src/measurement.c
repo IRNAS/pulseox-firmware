@@ -265,13 +265,15 @@ int measurement_detect_pulse(uint16_t raw, float value)
     pulse_current_timestamp = 0;
     pulse_last_timestamp = 0;
     pulse_previous_value = 0;
+
     pulse_current_bpm = 0.0;
     pulse_beats = 0;
-    ir_peaks_present = false;
     pulse_present = 0;
     memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
+    
+    ir_peaks_present = false;
     if (empty_ir_need == true) {
-      for (int i = 0; i < NUM_OF_PERIODS; i++) {  // empty AMP IR buffer
+      for (int i = 0; i < NUM_OF_PEAKS; i++) {  // empty AMP IR buffer -> maybe not needed
         butt_ir_buffer[i] = 0.0;
       }
       sqi_ir = 0.0;
@@ -286,6 +288,9 @@ int measurement_detect_pulse(uint16_t raw, float value)
     pulse_beats = 0;
     pulse_present = 0;
     memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
+
+    ir_peaks_present = false; // possible optimization
+    // empty AMP IR buffer ???
   }
 
   switch (pulse_state) {
@@ -309,7 +314,7 @@ int measurement_detect_pulse(uint16_t raw, float value)
         // add data to AMP buffer
         butt_ir_buffer[cur_amp_element_ir] = value;
         cur_amp_element_ir++;
-        if (cur_amp_element_ir == NUM_OF_PERIODS + 1) {
+        if (cur_amp_element_ir == NUM_OF_PEAKS) { // repair
           sqi_ir_loop();
           cur_amp_element_ir = 0;
         }
@@ -352,19 +357,22 @@ void red_detect_mins(uint16_t raw, float value) {
     red_current_timestamp = 0;
     red_last_timestamp = 0;
     red_previous_value = 0.0;
+    
     red_peaks_present = false;
     if (empty_red_need == true) {
-      for (int i = 0; i < NUM_OF_PERIODS; i++) {  // empty AMP RED buffer
+      for (int i = 0; i < NUM_OF_PEAKS; i++) {  // empty AMP RED buffer
         butt_red_buffer[i] = 0.0;
       }
       sqi_red = 0.0;
       empty_red_need = false;
     }
+    return;
   }
   
   // If no peaks detected for some time, reset.
   if (clock_millis() - red_last_timestamp > PULSE_RESET_TIMEOUT) {
-    red_peaks_present = false;
+    red_peaks_present = false; // check if really helps
+    // empty AMP RED buffer ???
   }
   
   switch(pulse_state_red) {
@@ -383,14 +391,16 @@ void red_detect_mins(uint16_t raw, float value) {
       else { 
         // Reached the bottom.
         red_last_timestamp = red_current_timestamp;
-        butt_red_buffer[cur_amp_element_red] = value; // add data to AMP buffer
+        // add data to AMP buffer
+        butt_red_buffer[cur_amp_element_red] = value;
         cur_amp_element_red++;
-        if (cur_amp_element_red == NUM_OF_PERIODS + 1) {
+        if (cur_amp_element_red == NUM_OF_PEAKS) {
           sqi_red_loop();
           cur_amp_element_red = 0;
         }
         red_peaks_present = true;
         pulse_state_red = PULSE_RISING;
+        return;
       }
       break;
     }
@@ -403,6 +413,7 @@ void red_detect_mins(uint16_t raw, float value) {
     }
   }
   red_previous_value = value;
+  return;
 }
   
 void change_brightness_ir() {
@@ -458,10 +469,10 @@ void change_brightness_red() {
 void sqi_ir_loop() {
   // calcuate AMP - signal amplitude
   float amp_ir = 0.0;
-  for (int i = 0; i < NUM_OF_PERIODS; i++) {
+  for (int i = 0; i < NUM_OF_PEAKS; i++) {
     amp_ir += butt_ir_buffer[i];
   }
-  amp_ir = amp_ir / NUM_OF_PERIODS; // mean
+  amp_ir = amp_ir / NUM_OF_PEAKS; // mean
   if (amp_ir < 0.0) { 
     amp_ir = -amp_ir; //abs
   }
@@ -496,10 +507,10 @@ void sqi_ir_loop() {
 void sqi_red_loop() {
    // calcuate AMP - signal amplitude
   float amp_red = 0.0;
-  for (int i = 0; i < NUM_OF_PERIODS; i++) {
+  for (int i = 0; i < NUM_OF_PEAKS; i++) {
     amp_red += butt_red_buffer[i];
   }
-  amp_red = amp_red / NUM_OF_PERIODS; // mean
+  amp_red = amp_red / NUM_OF_PEAKS; // mean
   if (amp_red < 0.0) {
     amp_red = -amp_red; // abs
   }
