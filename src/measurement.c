@@ -282,11 +282,6 @@ int measurement_detect_pulse(uint16_t raw, float value)
     memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
     
     ir_peaks_present = false;
-    if (empty_ir_need == true) {
-      empty_amp_buffer(LED_IR);   // maybe not needed
-      sqi_ir = 0.0;
-      empty_ir_need = false;
-    }
     return 0;
   }
 
@@ -296,9 +291,6 @@ int measurement_detect_pulse(uint16_t raw, float value)
     pulse_beats = 0;
     pulse_present = 0;
     memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
-
-    //ir_peaks_present = false; // possible optimization
-    // empty AMP IR buffer ???
   }
 
   switch (pulse_state) {
@@ -371,19 +363,14 @@ void red_detect_mins(uint16_t raw, float value) {
     red_previous_value = 0.0;
     
     red_peaks_present = false;
-    if (empty_red_need == true) {
-      empty_amp_buffer(LED_RED);  // maybe not needed
-      sqi_red = 0.0;
-      empty_red_need = false;
-    }
     return;
   }
   
-  // If no peaks detected for some time, reset.
-  if (clock_millis() - red_last_timestamp > PULSE_RESET_TIMEOUT) {
+  // If no peaks detected for some time, reset. -> probably not needed on red
+  //if (clock_millis() - red_last_timestamp > PULSE_RESET_TIMEOUT) {
     //red_peaks_present = false; // check if really helps
     // empty AMP RED buffer ???
-  }
+  //}
   
   switch(pulse_state_red) {
     case PULSE_IDLE: {
@@ -680,6 +667,18 @@ void measurement_update()
       // reset SQI-s
       sqi_ir = 0.0;
       sqi_red = 0.0;
+      //if (empty_ir_need == true) {  // possible fix it - condition like this is not ok
+        // loop for below lines
+      //}
+      empty_amp_buffer(LED_IR);
+      empty_ir_need = false;
+      empty_std_buffer(LED_IR);
+      led_config[0].duty_on = IR_DEFAULT;
+      
+      empty_amp_buffer(LED_RED);
+      empty_red_need = false;
+      empty_std_buffer(LED_RED);
+      led_config[1].duty_on = RED_DEFAULT;
     }
 
     // IR signal - all time necessary variables
