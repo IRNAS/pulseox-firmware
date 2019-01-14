@@ -45,8 +45,8 @@
 #define DETECTOR_TIMINGS_FALL_TIME 10
 
 // defined in and max brightness values
-#define MIN_LED_IR 100
-#define MIN_LED_RED 2000
+#define MIN_LED_IR 40
+#define MIN_LED_RED 250
 #define MAX_LED_IR 1500
 #define MAX_LED_RED 11000
 
@@ -171,6 +171,12 @@ bool minus_step_red = false;
 bool ir_buff_ready = false;
 bool red_buff_ready = false;
 uint32_t last_time = 0;
+uint32_t sqi_ir_last_timestamp = 0;
+uint32_t sqi_ir_cur_timestamp = 0;
+uint32_t sqi_red_last_timestamp = 0;
+uint32_t sqi_red_cur_timestamp = 0;
+uint32_t test_ir = 0;
+uint32_t test_red = 0;
 
 // Clipping test
 bool clipping_confirmed = false;
@@ -357,7 +363,8 @@ int measurement_detect_pulse(uint16_t raw, float value)
 }
 
 void red_detect_mins(uint16_t raw, float value) {
-  if (value >= PULSE_RESET_THRESHOLD || raw >= MEASUREMENT_THRESHOLD) {
+  //if (value >= PULSE_RESET_THRESHOLD || raw >= MEASUREMENT_THRESHOLD) {
+  if (raw >= MEASUREMENT_THRESHOLD) {
     pulse_state_red = PULSE_IDLE;
     red_current_timestamp = 0;
     red_last_timestamp = 0;
@@ -511,9 +518,12 @@ void sqi_ir_loop() {
   if (sqi_ir < 0.0) {
     sqi_ir = 0.0;
   }
-  
-  if (sqi_ir < SQI_IR_BORDER) {
+  // TODO: implement rolling mean for sqi
+  sqi_ir_cur_timestamp = clock_millis();
+  if (sqi_ir < SQI_IR_BORDER && (sqi_ir_cur_timestamp - sqi_ir_last_timestamp > SQI_BRIGHT_CHANGE_TIMEOUT)) {
     change_brightness_ir();
+    sqi_ir_last_timestamp = sqi_ir_cur_timestamp;
+    test_ir++;
   }
   std_ir_buf_full = false;  // possible problem
   empty_ir_need = true;
@@ -549,9 +559,11 @@ void sqi_red_loop() {
   if (sqi_red < 0.0) {
     sqi_red = 0.0;
   }
-  
-  if (sqi_red < SQI_RED_BORDER) {
+  sqi_red_cur_timestamp = clock_millis();
+  if (sqi_red < SQI_RED_BORDER && (sqi_red_cur_timestamp - sqi_red_last_timestamp > SQI_BRIGHT_CHANGE_TIMEOUT)) {
     change_brightness_red();
+    sqi_red_last_timestamp = sqi_red_cur_timestamp;
+    test_red++;
   }
   std_red_buff_full = false;  // possible problem
   empty_red_need = true;
@@ -645,6 +657,10 @@ void measurement_update()
     float dc_red = 0.0;
     float butt_ambient_red = 0.0;
     float butt_red = 0.0;
+    float norm_ir = 0.0;
+    float norm_red = 0.0;
+    float butt_norm_ir = 0.0;
+    float butt_norm_red = 0.0;
 
     //Finger detect
     if (raw.ir < MEASUREMENT_THRESHOLD && raw.red < MEASUREMENT_THRESHOLD) {
@@ -700,11 +716,11 @@ void measurement_update()
         }
       }
       // Normalize IR and red AC by their DC components.
-      float norm_ir = dc_ir / dc_filter_ir.w;
-      float norm_red = dc_red / dc_filter_red.w;
+      norm_ir = dc_ir / dc_filter_ir.w;
+      norm_red = dc_red / dc_filter_red.w;
 
-      float butt_norm_ir = filter_butterworth_lp(&butt_filter_spo2_ir, norm_ir);
-      float butt_norm_red = filter_butterworth_lp(&butt_filter_spo2_red, norm_red);
+      butt_norm_ir = filter_butterworth_lp(&butt_filter_spo2_ir, norm_ir);
+      butt_norm_red = filter_butterworth_lp(&butt_filter_spo2_red, norm_red);
 
       ac_sqsum_ir += butt_norm_ir * butt_norm_ir;
       ac_sqsum_red += butt_norm_red * butt_norm_red;
@@ -785,6 +801,7 @@ void measurement_update()
     uart_putc(',');
     uart_puti(raw.yellow);
     uart_putc(',');
+    
     uart_puti((int) (norm_ir * 100000));
     uart_putc(',');
     uart_puti((int) (norm_red * 100000));
@@ -793,6 +810,7 @@ void measurement_update()
     uart_putc(',');
     uart_puti((int) (butt_norm_red * 100000));
     uart_putc(',');
+    
     uart_puti((int) (ratio * 100));
     uart_putc(',');
     */
@@ -811,9 +829,9 @@ void measurement_update()
     //uart_puti((int) (pulse_present));
     //uart_putc(',');
     //uart_puti((int) (red_peaks_present));
-    uart_puti((int) (noise_brigh_ir));
+    uart_puti((int) (test_ir));
     uart_putc(',');
-    uart_puti((int) (noise_brigh_red));
+    uart_puti((int) (test_red));
     uart_puts("\r\n");
     
 #endif
