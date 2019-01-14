@@ -238,13 +238,13 @@ void gui_render()
         // clear calibrating
         gfx_fillRect(40, 0, state.width, 10, 0x00);
         // write sp02
-        gfx_setTextSize(2);
-        gfx_setCursor(14, 26);
-        gfx_puts(text_buffer);
+        //gfx_setTextSize(2);
+        //gfx_setCursor(14, 26);
+        //gfx_puts(text_buffer);
         // write hr
-        gfx_setTextSize(2);
-        gfx_setCursor(80, 26);
-        gfx_puts(text_buffer_hr);
+        //gfx_setTextSize(2);
+        //gfx_setCursor(80, 26);
+        //gfx_puts(text_buffer_hr);
         state.display_calibrating = 0;
       }
       else {
@@ -254,13 +254,13 @@ void gui_render()
         gfx_setTextSize(1);
         gfx_puts("CALIBRATING");
         // clear sp02
-        gfx_setTextSize(2);
-        gfx_setCursor(14, 26);
-        gfx_puts("  ");
+        //gfx_setTextSize(2);
+        //gfx_setCursor(14, 26);
+        //gfx_puts("  ");
         // clear hr
-        gfx_setTextSize(2);
-        gfx_setCursor(80, 26);
-        gfx_puts("   ");
+        //gfx_setTextSize(2);
+        //gfx_setCursor(80, 26);
+        //gfx_puts("   ");
         state.display_calibrating = 1;
       }
       state.calibrating_toggled = now;
