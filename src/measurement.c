@@ -310,6 +310,19 @@ int measurement_detect_pulse(uint16_t raw, float value)
         // Reached the bottom.
         uint32_t beat_duration = pulse_current_timestamp - pulse_last_timestamp;
         pulse_last_timestamp = pulse_current_timestamp;
+
+        // Compute BPM.
+        float raw_bpm = 60000.0 / (float) beat_duration;
+        if (raw_bpm > 10.0 && raw_bpm < 300.0) {
+          pulse_beats++;
+          float bpm = filter_mean(&rolling_mean_pulse, raw_bpm, 0);
+
+          if (pulse_beats > PULSE_INITIAL_BEATS) {
+            pulse_current_bpm = bpm;
+            pulse_beats = PULSE_INITIAL_BEATS;
+            pulse_present = 1;
+          }
+        }
         
         // add data to AMP buffer
         butt_ir_buffer[cur_amp_element_ir] = value;
@@ -323,19 +336,6 @@ int measurement_detect_pulse(uint16_t raw, float value)
           sqi_ir_loop();
         }
         
-        // Compute BPM.
-        float raw_bpm = 60000.0 / (float) beat_duration;
-        if (raw_bpm > 10.0 && raw_bpm < 300.0) {
-          pulse_beats++;
-          float bpm = filter_mean(&rolling_mean_pulse, raw_bpm, 0);
-
-          if (pulse_beats > PULSE_INITIAL_BEATS) {
-            pulse_current_bpm = bpm;
-            pulse_beats = PULSE_INITIAL_BEATS;
-            pulse_present = 1;
-          }
-        }
-
         pulse_state = PULSE_RISING;
         return 1;
       }
@@ -355,7 +355,6 @@ int measurement_detect_pulse(uint16_t raw, float value)
 }
 
 void red_detect_mins(uint16_t raw, float value) {
-  //if (value >= PULSE_RESET_THRESHOLD || raw >= MEASUREMENT_THRESHOLD) {
   if (raw >= MEASUREMENT_THRESHOLD) {
     pulse_state_red = PULSE_IDLE;
     red_current_timestamp = 0;
@@ -365,12 +364,6 @@ void red_detect_mins(uint16_t raw, float value) {
     red_peaks_present = false;
     return;
   }
-  
-  // If no peaks detected for some time, reset. -> probably not needed on red
-  //if (clock_millis() - red_last_timestamp > PULSE_RESET_TIMEOUT) {
-    //red_peaks_present = false; // check if really helps
-    // empty AMP RED buffer ???
-  //}
   
   switch(pulse_state_red) {
     case PULSE_IDLE: {
@@ -513,6 +506,7 @@ void sqi_ir_loop() {
     test_ir++;
   }
   std_ir_buf_full = false;  // possible problem
+  //cur_std_element_ir = 0;
   empty_ir_need = true;
 }
 
@@ -553,6 +547,7 @@ void sqi_red_loop() {
     test_red++;
   }
   std_red_buff_full = false;  // possible problem
+  //cur_std_element_red = 0;
   empty_red_need = true;
 }
 
@@ -667,9 +662,8 @@ void measurement_update()
       // reset SQI-s
       sqi_ir = 0.0;
       sqi_red = 0.0;
-      //if (empty_ir_need == true) {  // possible fix it - condition like this is not ok
-        // loop for below lines
-      //}
+
+      // reset buffers for SQI
       empty_amp_buffer(LED_IR);
       empty_ir_need = false;
       empty_std_buffer(LED_IR);
@@ -679,6 +673,10 @@ void measurement_update()
       empty_red_need = false;
       empty_std_buffer(LED_RED);
       led_config[1].duty_on = RED_DEFAULT;
+
+      // reset hr and spo2 display
+      current_measurement.hr = 0;
+      current_measurement.spo2 = 0;
     }
 
     // IR signal - all time necessary variables
@@ -725,13 +723,13 @@ void measurement_update()
       ac_sqsum_red += butt_norm_red * butt_norm_red;
       spo2_samples++;
 
-      // Detect peaks in red signal
-      red_detect_mins(raw.red, butt_red);
-
       // Perform pulse detection.
       if (measurement_detect_pulse(raw.ir, butt_ir)) {
         spo2_beats++;
       }
+
+      // Detect peaks in red signal
+      red_detect_mins(raw.red, butt_red);
 
       // Compute derived measurements.
       static float ratio = 0.0;
