@@ -25,18 +25,21 @@
 #define IR_DEFAULT 600           // default IR brightness defines at which brightness level the calibration loops starts
 #define RED_DEFAULT 2000          // default RED brightness defines at which brightness level the calibration loops starts
 #define CHANGE_BRIGHT_DELAY 3000  // setup loop delay in ms
-#define SQI_IR_BORDER 0.6f        // IR test loop border value
-#define SQI_RED_BORDER 0.4f       // RED test loop border value
+#define SQI_IR_BORDER 0.7f        // IR test loop border value
+#define SQI_RED_BORDER 0.5f       // RED test loop border value
 #define PULSE_THRESHOLD -1.5f      // Pulse detection threshold
 #define RED_THRESHOLD -3.0f        // Peak Detector RED threshold
 #define IR_STEP 20                // IR brightness change step
 #define RED_STEP 250              // RED brightness change step
 #define SQI_NOISE_THRESHOLD 0.3f  // SQI border under which recorded signal is useless
 
-// Buffer size is number of samples needed -> odvisna od NUM_OF_PEAKS: 100 * perioda = (NUM_OF_PEAKS-1) * 100
+// Buffer size is number of samples needed -> depends on NUM_OF_PEAKS: 100 * period = (NUM_OF_PEAKS-1) * 100
 #define RAW_BUFFER_SIZE 400
 // Number of signal peaks needed (which is number of periods + 1)
 #define NUM_OF_PEAKS 5
+// Number of calculated SQIs in its buffer
+#define NUM_OF_SQIS 5
+
 // If the raw signal is above this threshold, ignore measurements.
 #define MEASUREMENT_THRESHOLD 2600
 // DC filter alpha.
@@ -68,7 +71,8 @@ typedef struct {
   uint16_t ambient;
 } raw_measurement_t;
 
-// Buffers for AMP computation - possible RAM optimization -> convert to ints
+//TODO RAM optimization -> convert to ints
+// Buffers for AMP computation 
 float butt_ir_buffer[NUM_OF_PEAKS];
 float butt_red_buffer[NUM_OF_PEAKS];
 
@@ -76,9 +80,9 @@ float butt_red_buffer[NUM_OF_PEAKS];
 float noise_ir_buffer[RAW_BUFFER_SIZE];
 float noise_red_buffer[RAW_BUFFER_SIZE];
 
-// Buffers for SQI computation -> buffer size 5, when is full - need to empty and fill it up again
-//float sqi_ir_buffer[];
-//float sqi_red_buffer[];
+// Buffers for SQI computation
+float sqi_ir_buffer[NUM_OF_SQIS];
+float sqi_red_buffer[NUM_OF_SQIS];
 
 typedef struct {
   // Derived measurements.

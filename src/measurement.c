@@ -58,8 +58,10 @@ uint16_t measurement_read_wavelength(uint8_t led_index);
 raw_measurement_t measurement_read();
 void sqi_ir_loop();
 void sqi_red_loop();
+float calculate_mean_sqi(uint8_t led);
 void empty_amp_buffer(uint8_t led);
 void empty_std_buffer(uint8_t led);
+void empty_sqi_buffer(uint8_t led);
 
 // LED configuration defaults.
 led_config_t led_config[] = {
@@ -160,12 +162,14 @@ uint8_t cur_amp_element_ir = 0;
 uint8_t cur_amp_element_red = 0;
 uint8_t cur_std_element_ir = 0;
 uint8_t cur_std_element_red = 0;
+uint8_t cur_sqi_element_ir = 0;
+uint8_t cur_sqi_element_red = 0;
 float sqi_ir = 0.0;
 float sqi_red = 0.0;
+float mean_sqi_ir = 0.0;
+float mean_sqi_red = 0.0;
 bool std_ir_buf_full = false;
 bool std_red_buff_full = false;
-bool empty_ir_need = false;
-bool empty_red_need = false;
 bool plus_step_ir = false;
 bool minus_step_red = false;
 bool ir_buff_ready = false;
@@ -178,8 +182,7 @@ uint32_t sqi_red_cur_timestamp = 0;
 uint32_t test_ir = 0;
 uint32_t test_red = 0;
 
-// Clipping test
-bool clipping_confirmed = false;
+// Low and high borders
 uint16_t clip_bright_ir = MAX_LED_IR;     // IR max brightness value
 uint16_t clip_bright_red = MAX_LED_RED;   // RED max brightness value
 uint16_t noise_brigh_ir = MIN_LED_IR;     // IR min brightness value
@@ -498,16 +501,21 @@ void sqi_ir_loop() {
   if (sqi_ir < 0.0) {
     sqi_ir = 0.0;
   }
-  // TODO: implement rolling mean for sqi
-  sqi_ir_cur_timestamp = clock_millis();
-  if (sqi_ir < SQI_IR_BORDER && (sqi_ir_cur_timestamp - sqi_ir_last_timestamp > SQI_BRIGHT_CHANGE_TIMEOUT)) {
-    change_brightness_ir();
-    sqi_ir_last_timestamp = sqi_ir_cur_timestamp;
-    test_ir++;
+  // add calculated SQI to buffer
+  if (cur_sqi_element_ir < NUM_OF_SQIS) {
+    sqi_ir_buffer[cur_sqi_element_ir] = sqi_ir;
+    cur_sqi_element_ir++;
   }
-  std_ir_buf_full = false;  // possible problem
-  //cur_std_element_ir = 0;
-  empty_ir_need = true;
+  else {  // if we have full sqi buffer
+    mean_sqi_ir = calculate_mean_sqi(LED_IR);
+    empty_sqi_buffer(LED_IR);
+    sqi_ir_cur_timestamp = clock_millis();
+    if (mean_sqi_ir < SQI_IR_BORDER && (sqi_ir_cur_timestamp - sqi_ir_last_timestamp > SQI_BRIGHT_CHANGE_TIMEOUT)) {
+      change_brightness_ir();
+      sqi_ir_last_timestamp = sqi_ir_cur_timestamp;
+    }
+  }
+  std_ir_buf_full = false;  // maybe doesn't need to happen every time
 }
 
 void sqi_red_loop() {
@@ -540,15 +548,21 @@ void sqi_red_loop() {
   if (sqi_red < 0.0) {
     sqi_red = 0.0;
   }
-  sqi_red_cur_timestamp = clock_millis();
-  if (sqi_red < SQI_RED_BORDER && (sqi_red_cur_timestamp - sqi_red_last_timestamp > SQI_BRIGHT_CHANGE_TIMEOUT)) {
-    change_brightness_red();
-    sqi_red_last_timestamp = sqi_red_cur_timestamp;
-    test_red++;
+  // add calculated SQI to buffer
+  if (cur_sqi_element_red < NUM_OF_SQIS) {
+    sqi_red_buffer[cur_sqi_element_red] = sqi_red;
+    cur_sqi_element_red++;
   }
-  std_red_buff_full = false;  // possible problem
-  //cur_std_element_red = 0;
-  empty_red_need = true;
+  else { // if we have full sqi buffer
+    mean_sqi_red = calculate_mean_sqi(LED_RED);
+    empty_sqi_buffer(LED_RED);
+    sqi_red_cur_timestamp = clock_millis();
+    if (sqi_red < SQI_RED_BORDER && (sqi_red_cur_timestamp - sqi_red_last_timestamp > SQI_BRIGHT_CHANGE_TIMEOUT)) {
+      change_brightness_red();
+      sqi_red_last_timestamp = sqi_red_cur_timestamp;
+    }
+  }
+  std_red_buff_full = false;
 }
 
 void empty_amp_buffer(uint8_t led) {
@@ -583,6 +597,38 @@ void empty_std_buffer(uint8_t led) {
     std_red_buff_full = false;
     cur_std_element_red = 0;
   }
+}
+
+void empty_sqi_buffer(uint8_t led) {
+  if (led == LED_IR) {  // empty IR buffer
+    for (int i = 0; i < NUM_OF_SQIS; i++) {
+      sqi_ir_buffer[i] = 0.0;
+    }
+    cur_sqi_element_ir = 0;
+  }
+  else if (led == LED_RED) {  // empty RED buffer
+    for (int i = 0; i < NUM_OF_SQIS; i++) {
+      sqi_red_buffer[i] = 0.0;
+    }
+    cur_sqi_element_red = 0;
+  }
+}
+
+float calculate_mean_sqi(uint8_t led) {
+  float mean_sqi = 0;
+  if (led == LED_IR) {  // IR SQI
+    for (int i = 0; i < NUM_OF_SQIS; i++) {
+      mean_sqi += sqi_ir_buffer[i];
+    }
+    mean_sqi = mean_sqi / NUM_OF_SQIS;
+  }
+  else if (led == LED_RED) {  // RED SQI
+    for (int i = 0; i < NUM_OF_SQIS; i++) {
+      mean_sqi += sqi_red_buffer[i];
+    }
+    mean_sqi = mean_sqi / NUM_OF_SQIS;
+  }
+  return mean_sqi;
 }
 
 #ifdef PULSEOX_BOARD_DIAGNOSTIC
@@ -664,15 +710,17 @@ void measurement_update()
       // reset SQI-s
       sqi_ir = 0.0;
       sqi_red = 0.0;
+      mean_sqi_ir = 0.0;
+      mean_sqi_red = 0.0;
+      empty_sqi_buffer(LED_IR);
+      empty_sqi_buffer(LED_RED);
 
       // reset buffers for SQI
       empty_amp_buffer(LED_IR);
-      empty_ir_need = false;
       empty_std_buffer(LED_IR);
       led_config[0].duty_on = IR_DEFAULT;
 
       empty_amp_buffer(LED_RED);
-      empty_red_need = false;
       empty_std_buffer(LED_RED);
       led_config[1].duty_on = RED_DEFAULT;
 
@@ -828,9 +876,9 @@ void measurement_update()
     //uart_puti((int) (pulse_present));
     //uart_putc(',');
     //uart_puti((int) (red_peaks_present));
-    uart_puti((int) (test_ir));
+    uart_puti((int) (mean_sqi_ir * 100));
     uart_putc(',');
-    uart_puti((int) (test_red));
+    uart_puti((int) (mean_sqi_red * 100));
     uart_puts("\r\n");
     
 #endif
