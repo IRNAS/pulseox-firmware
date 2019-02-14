@@ -136,7 +136,8 @@ void gui_measurement_update(const measurement_t *measurement)
       if (measurement->spo2) {
         if (measurement->spo2 > 0 && measurement->spo2 <= 99) {
           snprintf(text_buffer, sizeof(text_buffer), "%d", measurement->spo2);
-        } else {
+        } 
+        else {
           snprintf(text_buffer, sizeof(text_buffer), "??");
         }
       } 
@@ -149,7 +150,6 @@ void gui_measurement_update(const measurement_t *measurement)
       gfx_puts("  ");
       gfx_setCursor(14, 26);
       gfx_puts(text_buffer);
-
       state.display_spo2 = measurement->spo2;
     }
   }
@@ -238,13 +238,13 @@ void gui_render()
         // clear calibrating
         gfx_fillRect(40, 0, state.width, 10, 0x00);
         // write sp02
-        //gfx_setTextSize(2);
-        //gfx_setCursor(14, 26);
-        //gfx_puts(text_buffer);
+        gfx_setTextSize(2);
+        gfx_setCursor(14, 26);
+        gfx_puts(text_buffer);
         // write hr
-        //gfx_setTextSize(2);
-        //gfx_setCursor(80, 26);
-        //gfx_puts(text_buffer_hr);
+        gfx_setTextSize(2);
+        gfx_setCursor(80, 26);
+        gfx_puts(text_buffer_hr);
         state.display_calibrating = 0;
       }
       else {
@@ -254,13 +254,13 @@ void gui_render()
         gfx_setTextSize(1);
         gfx_puts("CALIBRATING");
         // clear sp02
-        //gfx_setTextSize(2);
-        //gfx_setCursor(14, 26);
-        //gfx_puts("  ");
+        gfx_setTextSize(2);
+        gfx_setCursor(14, 26);
+        gfx_puts("  ");
         // clear hr
-        //gfx_setTextSize(2);
-        //gfx_setCursor(80, 26);
-        //gfx_puts("   ");
+        gfx_setTextSize(2);
+        gfx_setCursor(80, 26);
+        gfx_puts("   ");
         state.display_calibrating = 1;
       }
       state.calibrating_toggled = now;
