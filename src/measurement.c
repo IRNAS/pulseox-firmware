@@ -659,6 +659,8 @@ void measurement_update()
     else {  // Finger out
       current_measurement.finger_in = 0;
       current_measurement.is_calibrating = 0;
+      pulse_present = 0;
+
       // reset SQI-s
       sqi_ir = 0.0;
       sqi_red = 0.0;
@@ -668,7 +670,7 @@ void measurement_update()
       empty_ir_need = false;
       empty_std_buffer(LED_IR);
       led_config[0].duty_on = IR_DEFAULT;
-      
+
       empty_amp_buffer(LED_RED);
       empty_red_need = false;
       empty_std_buffer(LED_RED);
