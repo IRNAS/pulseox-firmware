@@ -734,6 +734,7 @@ void measurement_update()
     float butt_ambient_ir = filter_butterworth_hp_ambient(&butt_filter_ir_ambient, dc_ir);
     float mean_ir = filter_mean(&mean_diff_ir, butt_ambient_ir, 1);
     mean_ir = filter_mean(&rolling_mean_ir, mean_ir, 0);
+    static float ratio = 0.0;
     if (current_measurement.finger_in) {
       // IR.
       butt_ir = filter_butterworth_lp(&butt_filter_ir, butt_ambient_ir);
@@ -782,7 +783,7 @@ void measurement_update()
       red_detect_mins(raw.red, butt_red);
 
       // Compute derived measurements.
-      static float ratio = 0.0;
+      
       if (pulse_present) {
         current_measurement.hr = (int) pulse_current_bpm;
 
@@ -829,21 +830,22 @@ void measurement_update()
     uart_putc(',');
     uart_puti(raw.ir);
     uart_putc(',');
+/*
     uart_puti((int) (butt_ambient_ir * 100));
     uart_putc(',');
     uart_puti((int) (mean_ir * 100));
-    uart_putc(',');
+    uart_putc(',');*/
     uart_puti((int) (butt_ir * 100));
     uart_putc(',');
     //uart_puti((int) (noise_ir * 100));
     //uart_putc(',');
-    uart_puti((int) (dc_red * 100));
-    uart_putc(',');
+    //uart_puti((int) (dc_red * 100));
+    //uart_putc(',');
     uart_puti((int) (butt_red * 100));
     uart_putc(',');
     //uart_puti((int) (noise_red * 100));
     //uart_putc(',');
-    /*
+   /* 
     uart_puti(raw.orange);
     uart_putc(',');
     uart_puti(raw.yellow);
@@ -856,29 +858,30 @@ void measurement_update()
     uart_puti((int) (butt_norm_ir * 100000));
     uart_putc(',');
     uart_puti((int) (butt_norm_red * 100000));
-    uart_putc(',');
+    uart_putc(',');*/
     
     uart_puti((int) (ratio * 100));
     uart_putc(',');
-    */
+    
     uart_puti(raw.red);
     uart_putc(',');
-    uart_puti(led_config[0].duty_on);
-    uart_putc(',');
-    uart_puti(led_config[1].duty_on);
-    uart_putc(',');
+
+    //uart_puti(led_config[0].duty_on);
+    //uart_putc(',');
+    //uart_puti(led_config[1].duty_on);
+    //uart_putc(',');
     uart_puti((int) (sqi_ir * 100));
     uart_putc(',');
     uart_puti((int) (sqi_red * 100));
-    uart_putc(',');
-    uart_puti(raw.ambient);
-    uart_putc(',');
+    //uart_putc(',');
+    //uart_puti(raw.ambient);
+    //uart_putc(',');
     //uart_puti((int) (pulse_present));
     //uart_putc(',');
     //uart_puti((int) (red_peaks_present));
-    uart_puti((int) (mean_sqi_ir * 100));
-    uart_putc(',');
-    uart_puti((int) (mean_sqi_red * 100));
+    //uart_puti((int) (mean_sqi_ir * 100));
+    //uart_putc(',');
+    //uart_puti((int) (mean_sqi_red * 100));
     uart_puts("\r\n");
     
 #endif
