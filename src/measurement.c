@@ -185,8 +185,8 @@ uint32_t test_red = 0;
 // Low and high borders
 uint16_t clip_bright_ir = MAX_LED_IR;     // IR max brightness value
 uint16_t clip_bright_red = MAX_LED_RED;   // RED max brightness value
-uint16_t noise_brigh_ir = MIN_LED_IR;     // IR min brightness value
-uint16_t noise_brigh_red = MIN_LED_RED;   // RED min brightness value
+uint16_t noise_bright_ir = MIN_LED_IR;     // IR min brightness value
+uint16_t noise_bright_red = MIN_LED_RED;   // RED min brightness value
 
 // Measurement callback.
 measurement_update_callback_t callback_on_update = NULL;
@@ -419,7 +419,7 @@ void change_brightness_ir() {
   empty_std_buffer(LED_IR);
 
   // change direction of brightness change if needed
-  if (led_config[0].duty_on < noise_brigh_ir + 1) {  
+  if (led_config[0].duty_on < noise_bright_ir + 1) {  
     plus_step_ir = true;
   }
   else if (led_config[0].duty_on > clip_bright_ir - 1) {
@@ -437,7 +437,7 @@ void change_brightness_ir() {
   // noise detection
   if (led_config[0].duty_on <= (5*IR_STEP + MIN_LED_IR) && plus_step_ir == false) {
     if (sqi_ir != 0 && sqi_ir < SQI_NOISE_THRESHOLD) { 
-      noise_brigh_ir = led_config[0].duty_on;
+      noise_bright_ir = led_config[0].duty_on;
     }
   }
 }
@@ -451,7 +451,7 @@ void change_brightness_red() {
   if (led_config[1].duty_on > clip_bright_red - 1)  {
     minus_step_red = true;
   }
-  else if (led_config[1].duty_on < noise_brigh_red + 1){
+  else if (led_config[1].duty_on < noise_bright_red + 1){
     minus_step_red = false;
   }
 
@@ -466,7 +466,7 @@ void change_brightness_red() {
    // noise detection
    if (led_config[1].duty_on <= (5*RED_STEP + MIN_LED_RED) && minus_step_red == true) {
      if (sqi_red != 0 && sqi_red < SQI_NOISE_THRESHOLD) { 
-       noise_brigh_red = led_config[1].duty_on;
+       noise_bright_red = led_config[1].duty_on;
      }
    }
 }
@@ -557,7 +557,7 @@ void sqi_red_loop() {
     mean_sqi_red = calculate_mean_sqi(LED_RED);
     empty_sqi_buffer(LED_RED);
     sqi_red_cur_timestamp = clock_millis();
-    if (sqi_red < SQI_RED_BORDER && (sqi_red_cur_timestamp - sqi_red_last_timestamp > SQI_BRIGHT_CHANGE_TIMEOUT)) {
+    if (mean_sqi_red < SQI_RED_BORDER && (sqi_red_cur_timestamp - sqi_red_last_timestamp > SQI_BRIGHT_CHANGE_TIMEOUT)) {
       change_brightness_red();
       sqi_red_last_timestamp = sqi_red_cur_timestamp;
     }
