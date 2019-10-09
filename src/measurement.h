@@ -26,7 +26,7 @@
 #define RED_DEFAULT 2000          // default RED brightness defines at which brightness level the calibration loops starts
 #define CHANGE_BRIGHT_DELAY 3000  // setup loop delay in ms
 #define SQI_IR_BORDER 0.7f        // IR test loop border value
-#define SQI_RED_BORDER 0.5f       // RED test loop border value
+#define SQI_RED_BORDER 0.7f       // RED test loop border value
 #define PULSE_THRESHOLD -1.5f      // Pulse detection threshold
 #define RED_THRESHOLD -3.0f        // Peak Detector RED threshold
 #define IR_STEP 20                // IR brightness change step

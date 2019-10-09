@@ -285,6 +285,7 @@ int measurement_detect_pulse(uint16_t raw, float value)
     memset(&rolling_mean_pulse, 0, sizeof(rolling_mean_pulse));
     
     ir_peaks_present = false;
+    red_peaks_present = false;
     return 0;
   }
 
@@ -327,7 +328,7 @@ int measurement_detect_pulse(uint16_t raw, float value)
           }
         }
         
-        // add data to AMP buffer
+        // add IR data to AMP buffer
         butt_ir_buffer[cur_amp_element_ir] = value;
         cur_amp_element_ir++;
         if (cur_amp_element_ir == NUM_OF_PEAKS) {
@@ -337,6 +338,18 @@ int measurement_detect_pulse(uint16_t raw, float value)
         ir_peaks_present = true;
         if (ir_buff_ready) {
           sqi_ir_loop();
+        }
+
+        // add RED data to AMP buffer
+        butt_red_buffer[cur_amp_element_red] = value;
+        cur_amp_element_red++;
+        if (cur_amp_element_red == NUM_OF_PEAKS) {
+          cur_amp_element_red = 0;
+          red_buff_ready = true;
+        }
+        red_peaks_present = true;
+        if (red_buff_ready) {
+          sqi_red_loop();
         }
         
         pulse_state = PULSE_RISING;
@@ -780,7 +793,7 @@ void measurement_update()
       }
 
       // Detect peaks in red signal
-      red_detect_mins(raw.red, butt_red);
+      //red_detect_mins(raw.red, butt_red);
 
       // Compute derived measurements.
       
